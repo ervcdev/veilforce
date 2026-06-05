@@ -13,9 +13,8 @@ contracts/.env
 node_modules/
 dist/
 
-# Next.js
-frontend/.next/
-frontend/out/
+
+
 
 # OS
 .DS_Store
