@@ -292,11 +292,11 @@ export default function VeilForgeDashboard() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
         .font-mono-jetbrains { font-family: 'JetBrains Mono', monospace; }
-        @keyframes ticker-scroll {
+        @keyframes ticker {
           from { transform: translateX(0); }
           to { transform: translateX(-50%); }
         }
-        .animate-ticker { animation: ticker-scroll 30s linear infinite; }
+        .animate-ticker { animation: ticker 25s linear infinite; }
         .animate-ticker:hover { animation-play-state: paused; }
         @keyframes row-enter {
           from { opacity: 0; transform: translateY(-8px); }
@@ -582,18 +582,25 @@ export default function VeilForgeDashboard() {
             LIVE FEED
           </div>
           <div className="flex-1 overflow-hidden">
-            <div className="flex gap-6 animate-ticker whitespace-nowrap">
+            <div className="animate-ticker flex gap-8 whitespace-nowrap">
               {[...ticker, ...ticker].map((event, i) => (
-                <span 
-                  key={`${event.id}-${i}`}
-                  className={`text-xs ${event.type === 'match' ? 'px-3 py-0.5 rounded-full' : ''}`}
-                  style={{
-                    color: event.type === 'commit' ? '#666680' : event.type === 'reveal' ? 'white' : '#00d4ff',
-                    background: event.type === 'match' ? '#001a22' : 'transparent',
-                  }}
-                >
-                  {event.type === 'match' && '⚡ '}{event.text}
-                </span>
+                event.type === 'match' ? (
+                  <span
+                    key={`${event.id}-${i}`}
+                    className="text-xs px-3 py-0.5 rounded-full font-medium"
+                    style={{ background: '#00d4ff', color: '#0a0a0f' }}
+                  >
+                    {event.text}
+                  </span>
+                ) : (
+                  <span
+                    key={`${event.id}-${i}`}
+                    className="text-xs"
+                    style={{ color: event.type === 'commit' ? '#666680' : 'white' }}
+                  >
+                    {event.text}
+                  </span>
+                )
               ))}
             </div>
           </div>
