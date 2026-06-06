@@ -367,7 +367,7 @@ export default function VeilForgeDashboard() {
         </div>
         
         {/* METRICS BAR */}
-        <div className="h-[72px] flex gap-3 p-3" style={{ background: '#0a0a0f' }}>
+        <div className="flex gap-3 p-3" style={{ background: '#0a0a0f', minHeight: '72px' }}>
           {[
             { key: 'tps', label: 'TPS', value: metrics.tps.toLocaleString() },
             { key: 'matches', label: 'MATCHES', value: metrics.matches.toLocaleString() },
@@ -377,24 +377,24 @@ export default function VeilForgeDashboard() {
           ].map(metric => (
             <div 
               key={metric.key} 
-              className="flex-1 rounded p-3 border-t"
+              className="flex-1 rounded p-3 border-t flex flex-col justify-between"
               style={{ background: '#0d0d14', border: '1px solid #1a1a2e', borderTopColor: 'rgba(0, 212, 255, 0.2)' }}
             >
-              <div className="text-xs uppercase" style={{ color: '#666680' }}>{metric.label}</div>
+              <div className="text-xs uppercase leading-tight" style={{ color: '#666680' }}>{metric.label}</div>
               <div 
-                className={`font-mono-jetbrains text-lg font-bold mt-1 transition-colors duration-200 flex items-baseline gap-1 ${flashingMetric === metric.key ? 'flash-white' : ''}`}
-                style={{ color: flashingMetric === metric.key ? 'white' : '#00d4ff' }}
+                className={`font-mono-jetbrains text-base font-bold transition-colors duration-200 flex items-center gap-1 flex-wrap ${flashingMetric === metric.key ? 'flash-white' : ''}`}
+                style={{ color: flashingMetric === metric.key ? 'white' : '#00d4ff', lineHeight: '1.2' }}
               >
                 {metric.prefix && (
-                  <span className="text-xs font-normal" style={{ color: '#666680' }}>{metric.prefix}</span>
+                  <span className="text-xs font-normal whitespace-nowrap" style={{ color: '#666680' }}>{metric.prefix}</span>
                 )}
-                <span>{metric.value}</span>
+                <span className="whitespace-nowrap">{metric.value}</span>
                 {metric.suffix && (
-                  <span className="text-xs font-normal" style={{ color: '#666680' }}>{metric.suffix}</span>
+                  <span className="text-xs font-normal whitespace-nowrap" style={{ color: '#666680' }}>{metric.suffix}</span>
                 )}
                 {metric.key === 'tps' && (
                   <span
-                    className="text-xs font-normal ml-0.5"
+                    className="text-xs font-normal whitespace-nowrap"
                     style={{ color: tpsDirection === 'up' ? '#00ff88' : '#ff4466' }}
                   >
                     {tpsDirection === 'up' ? '↑' : '↓'}
