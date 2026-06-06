@@ -86,9 +86,9 @@ export default function VeilForgeDashboard() {
   const [inputAmount, setInputAmount] = useState('1000')
   const [flashingMetric, setFlashingMetric] = useState<string | null>(null)
   const [agentStats, setAgentStats] = useState([
-    { ...AGENTS[0], spread: 0.12, orders: 47, pnl: 1247.50, activity: 60 },
-    { ...AGENTS[1], spread: 0.08, orders: 31, pnl: 892.30, activity: 40 },
-    { ...AGENTS[2], spread: 0.18, orders: 18, pnl: 234.80, activity: 25 },
+    { ...AGENTS[0], spread: 0.12, orders: 47, pnl: 1247.50, activity: 75, lastAction: 'BID 1.20 WETH @ 3002' },
+    { ...AGENTS[1], spread: 0.08, orders: 31, pnl: 892.30, activity: 45, lastAction: 'ASK 0.85 WETH @ 2998' },
+    { ...AGENTS[2], spread: 0.18, orders: 18, pnl: 234.80, activity: 25, lastAction: 'BID 0.40 WETH @ 2995' },
   ])
 
   // Block number increment
@@ -163,10 +163,14 @@ export default function VeilForgeDashboard() {
       setGlowingAgent(agent.address)
       setTimeout(() => setGlowingAgent(null), 600)
       
-      // Update agent stats
+      // Update agent stats + last action for the glowing agent
+      const actionDir = Math.random() < 0.5 ? 'BID' : 'ASK'
+      const actionAmount = randomInRange(0.4, 1.8).toFixed(2)
+      const actionPrice = randomInRange(2992, 3008).toFixed(0)
+      const newLastAction = `${actionDir} ${actionAmount} WETH @ ${actionPrice}`
       setAgentStats(prev => prev.map(a => 
         a.address === agent.address 
-          ? { ...a, orders: a.orders + 1, activity: Math.min(100, a.activity + 5) }
+          ? { ...a, orders: a.orders + 1, activity: Math.min(100, a.activity + 5), lastAction: newLastAction }
           : { ...a, activity: Math.max(10, a.activity - 2) }
       ))
       
@@ -511,7 +515,7 @@ export default function VeilForgeDashboard() {
           {/* RIGHT PANEL - AGENT HEATMAP */}
           <div className="w-[30%] flex flex-col">
             <div className="text-xs uppercase tracking-widest mb-3" style={{ color: '#666680' }}>AGENT COMPETITION</div>
-            <div className="flex flex-col gap-3 flex-1">
+            <div className="flex flex-col gap-4 flex-1">
               {agentStats.map(agent => (
                 <div 
                   key={agent.address}
@@ -554,15 +558,24 @@ export default function VeilForgeDashboard() {
                     </div>
                     <div>
                       <span className="text-xs" style={{ color: '#666680' }}>P&L</span>
-                      <span className="font-mono-jetbrains text-xs ml-1" style={{ color: '#00ff88' }}>+${agent.pnl.toFixed(2)}</span>
+                      <span
+                        className="font-mono-jetbrains text-xs ml-1"
+                        style={{ color: agent.strategy === 'MARKET MAKER' ? '#00ff88' : agent.pnl < 500 ? '#ffaa00' : '#00ff88' }}
+                      >
+                        +${agent.pnl.toFixed(2)}
+                      </span>
                     </div>
                   </div>
                   
-                  <div className="mt-2 h-1 rounded-full" style={{ background: '#1a1a2e' }}>
+                  <div className="mt-2 h-2 rounded-full" style={{ background: '#1a1a2e' }}>
                     <div 
                       className="h-full rounded-full transition-all duration-300"
                       style={{ background: '#00d4ff', width: `${agent.activity}%` }}
                     />
+                  </div>
+
+                  <div className="font-mono-jetbrains text-xs mt-2" style={{ color: '#666680' }}>
+                    LAST ACTION: {agent.lastAction}
                   </div>
                 </div>
               ))}
