@@ -24,6 +24,7 @@ interface RevealRow {
   amount: number
   timestamp: number
   isNew: boolean
+  matching?: boolean
 }
 
 interface TickerEvent {
@@ -74,6 +75,7 @@ export default function VeilForgeDashboard() {
   })
   const [blockNumber, setBlockNumber] = useState(19847523)
   const blockNumberRef = useRef(19847523)
+  const matchedIdsRef = useRef<Set<string>>(new Set())
   const [glowingAgent, setGlowingAgent] = useState<string | null>(null)
   const [bestRate, setBestRate] = useState<BestRate>({
     agentAddress: AGENTS[0].address,
@@ -170,12 +172,14 @@ export default function VeilForgeDashboard() {
       
       // Schedule reveal after 2500ms
       setTimeout(() => {
-        const direction = Math.random() > 0.5 ? 'BID' : 'ASK'
-        const price = direction === 'BID' 
-          ? randomInRange(2995, 3005)
-          : randomInRange(2990, 3010)
+        // Roughly 50/50 BID/ASK
+        const direction: 'BID' | 'ASK' = Math.random() < 0.5 ? 'BID' : 'ASK'
+        // BIDs cluster slightly higher, ASKs slightly lower so they cross often
+        const price = direction === 'BID'
+          ? randomInRange(2998, 3008)
+          : randomInRange(2992, 3002)
         const amount = randomInRange(0.5, 2)
-        
+
         const newReveal: RevealRow = {
           id: generateId(),
           agent: agent.address,
@@ -186,12 +190,7 @@ export default function VeilForgeDashboard() {
           timestamp: Date.now(),
           isNew: true,
         }
-        
-        setReveals(prev => {
-          const updated = [newReveal, ...prev.map(r => ({ ...r, isNew: false }))]
-          return updated.slice(0, 5)
-        })
-        
+
         // Add reveal ticker event
         setTicker(prev => {
           const event: TickerEvent = {
@@ -202,42 +201,86 @@ export default function VeilForgeDashboard() {
           }
           return [event, ...prev].slice(0, 20)
         })
-        
-        // Update metrics
+
+        // Active orders go UP on each reveal
         setMetrics(prev => {
           flashMetric('activeOrders')
-          return { ...prev, activeOrders: prev.activeOrders + 1 }
+          flashMetric('tps')
+          return {
+            ...prev,
+            activeOrders: prev.activeOrders + 1,
+            tps: Math.floor(randomInRange(340, 420)),
+          }
         })
-        
-        // Check for match
-        if (Math.random() > 0.6) {
-          setTimeout(() => {
-            const matchAgent = AGENTS[Math.floor(Math.random() * AGENTS.length)]
-            const matchPrice = randomInRange(2997, 3003)
-            const matchAmount = randomInRange(0.5, 1.5)
-            
-            setTicker(prev => {
+
+        // Insert reveal, then look for a crossing counterparty already on the book
+        setReveals(prev => {
+          const withNew = [newReveal, ...prev.map(r => ({ ...r, isNew: false }))]
+
+          // Find an opposing order that crosses: BID price >= ASK price
+          const counterparty = withNew.find(r => {
+            if (r.id === newReveal.id) return false
+            if (matchedIdsRef.current.has(r.id)) return false
+            if (r.direction === newReveal.direction) return false
+            const bid = newReveal.direction === 'BID' ? newReveal : r
+            const ask = newReveal.direction === 'ASK' ? newReveal : r
+            return bid.price >= ask.price
+          })
+
+          if (counterparty) {
+            const bid = newReveal.direction === 'BID' ? newReveal : counterparty
+            const ask = newReveal.direction === 'ASK' ? newReveal : counterparty
+            const fillAmount = Math.min(bid.amount, ask.amount)
+            const fillPrice = (bid.price + ask.price) / 2
+
+            // Mark both as matched so we don't double-match
+            matchedIdsRef.current.add(newReveal.id)
+            matchedIdsRef.current.add(counterparty.id)
+
+            // Emit MATCH ticker event
+            setTicker(t => {
               const event: TickerEvent = {
                 id: generateId(),
                 type: 'match',
-                text: `MATCH ${agent.short} ↔ ${matchAgent.short} — ${matchAmount.toFixed(2)} WETH @ ${matchPrice.toFixed(0)} USDC`,
+                text: `MATCH ${bid.agentShort} ↔ ${ask.agentShort} — ${fillAmount.toFixed(2)} WETH @ ${fillPrice.toFixed(0)} USDC`,
                 timestamp: Date.now(),
               }
-              return [event, ...prev].slice(0, 20)
+              return [event, ...t].slice(0, 20)
             })
-            
-            setMetrics(prev => {
+
+            // Matches +1, volume up, active orders down by 2 (both filled)
+            setMetrics(m => {
               flashMetric('matches')
               flashMetric('volume')
+              flashMetric('activeOrders')
               return {
-                ...prev,
-                matches: prev.matches + 1,
-                volume: prev.volume + matchAmount * matchPrice,
-                tps: Math.floor(randomInRange(200, 400)),
+                ...m,
+                matches: m.matches + 1,
+                volume: m.volume + fillAmount * fillPrice,
+                activeOrders: Math.max(0, m.activeOrders - 2),
+                tps: Math.floor(randomInRange(340, 420)),
+                avgReveal: parseFloat(randomInRange(0.9, 1.6).toFixed(2)),
               }
             })
-          }, 500)
-        }
+
+            // Flash both matched rows in cyan, then remove them shortly after
+            const flagged = withNew.map(r =>
+              r.id === newReveal.id || r.id === counterparty.id
+                ? { ...r, matching: true }
+                : r
+            )
+
+            setTimeout(() => {
+              setReveals(curr => curr.filter(r => r.id !== newReveal.id && r.id !== counterparty.id))
+              matchedIdsRef.current.delete(newReveal.id)
+              matchedIdsRef.current.delete(counterparty.id)
+            }, 600)
+
+            return flagged.slice(0, 6)
+          }
+
+          return withNew.slice(0, 6)
+        })
       }, 2500)
     }, 1500)
     
@@ -261,6 +304,11 @@ export default function VeilForgeDashboard() {
         }
         .row-enter { animation: row-enter 300ms ease-out forwards; }
         .flash-white { color: white !important; transition: color 200ms; }
+        @keyframes match-flash {
+          0%, 100% { background: rgba(0, 212, 255, 0.35); }
+          50% { background: rgba(0, 212, 255, 0.7); }
+        }
+        .row-matching { animation: match-flash 300ms ease-in-out 2; }
       `}</style>
       
       <div className="h-screen w-full flex flex-col overflow-hidden" style={{ background: '#0a0a0f', minWidth: '1280px' }}>
@@ -364,11 +412,11 @@ export default function VeilForgeDashboard() {
                     {reveals.map(reveal => (
                       <tr 
                         key={reveal.id}
-                        className={reveal.isNew ? 'row-enter' : ''}
+                        className={`${reveal.isNew ? 'row-enter' : ''} ${reveal.matching ? 'row-matching' : ''}`}
                         style={{ 
                           background: '#111118', 
                           borderBottom: '1px solid #1a1a2e',
-                          borderLeft: `2px solid ${reveal.direction === 'BID' ? '#00ff88' : '#ff4466'}`,
+                          borderLeft: `2px solid ${reveal.matching ? '#00d4ff' : reveal.direction === 'BID' ? '#00ff88' : '#ff4466'}`,
                         }}
                       >
                         <td className="p-2 font-mono-jetbrains" style={{ color: '#666680' }}>{reveal.agentShort}</td>
