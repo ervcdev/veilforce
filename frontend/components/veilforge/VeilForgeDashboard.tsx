@@ -85,6 +85,9 @@ export default function VeilForgeDashboard() {
   })
   const [inputAmount, setInputAmount] = useState('1000')
   const [flashingMetric, setFlashingMetric] = useState<string | null>(null)
+  const [blockFlash, setBlockFlash] = useState(false)
+  const [tpsDirection, setTpsDirection] = useState<'up' | 'down'>('up')
+  const prevTpsRef = useRef(247)
   const [agentStats, setAgentStats] = useState([
     { ...AGENTS[0], spread: 0.12, orders: 47, pnl: 1247.50, activity: 75, lastAction: 'BID 1.20 WETH @ 3002' },
     { ...AGENTS[1], spread: 0.08, orders: 31, pnl: 892.30, activity: 45, lastAction: 'ASK 0.85 WETH @ 2998' },
@@ -99,9 +102,19 @@ export default function VeilForgeDashboard() {
         blockNumberRef.current = newVal
         return newVal
       })
+      setBlockFlash(true)
+      setTimeout(() => setBlockFlash(false), 300)
     }, 1000)
     return () => clearInterval(interval)
   }, [])
+
+  // Track TPS direction since last change
+  useEffect(() => {
+    if (metrics.tps !== prevTpsRef.current) {
+      setTpsDirection(metrics.tps >= prevTpsRef.current ? 'up' : 'down')
+      prevTpsRef.current = metrics.tps
+    }
+  }, [metrics.tps])
 
   // Best rate update
   useEffect(() => {
@@ -324,7 +337,12 @@ export default function VeilForgeDashboard() {
             <span className="text-sm" style={{ color: '#666680' }}>SOMNIA TESTNET</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="font-mono-jetbrains text-xs text-white">BLOCK #{blockNumber.toLocaleString()}</span>
+            <span
+              className="font-mono-jetbrains text-xs transition-colors duration-200"
+              style={{ color: blockFlash ? '#00d4ff' : 'white' }}
+            >
+              BLOCK #{blockNumber.toLocaleString()}
+            </span>
             <span style={{ color: '#1a1a2e' }}>|</span>
             <span className="text-xs" style={{ color: '#00d4ff' }}>3 AGENTS ACTIVE</span>
           </div>
@@ -335,21 +353,35 @@ export default function VeilForgeDashboard() {
           {[
             { key: 'tps', label: 'TPS', value: metrics.tps.toLocaleString() },
             { key: 'matches', label: 'MATCHES', value: metrics.matches.toLocaleString() },
-            { key: 'volume', label: 'VOLUME (USDC)', value: `$${metrics.volume.toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
+            { key: 'volume', label: 'VOLUME (USDC)', prefix: '$', value: metrics.volume.toLocaleString(undefined, { maximumFractionDigits: 0 }) },
             { key: 'activeOrders', label: 'ACTIVE ORDERS', value: metrics.activeOrders.toLocaleString() },
-            { key: 'avgReveal', label: 'AVG REVEAL (ms)', value: metrics.avgReveal.toFixed(2) },
+            { key: 'avgReveal', label: 'AVG REVEAL', value: metrics.avgReveal.toFixed(2), suffix: 'ms' },
           ].map(metric => (
             <div 
               key={metric.key} 
-              className="flex-1 rounded p-3"
-              style={{ background: '#0d0d14', border: '1px solid #1a1a2e' }}
+              className="flex-1 rounded p-3 border-t"
+              style={{ background: '#0d0d14', border: '1px solid #1a1a2e', borderTopColor: 'rgba(0, 212, 255, 0.2)' }}
             >
               <div className="text-xs uppercase" style={{ color: '#666680' }}>{metric.label}</div>
               <div 
-                className={`font-mono-jetbrains text-lg font-bold mt-1 transition-colors duration-200 ${flashingMetric === metric.key ? 'flash-white' : ''}`}
+                className={`font-mono-jetbrains text-lg font-bold mt-1 transition-colors duration-200 flex items-baseline gap-1 ${flashingMetric === metric.key ? 'flash-white' : ''}`}
                 style={{ color: flashingMetric === metric.key ? 'white' : '#00d4ff' }}
               >
-                {metric.value}
+                {metric.prefix && (
+                  <span className="text-xs font-normal" style={{ color: '#666680' }}>{metric.prefix}</span>
+                )}
+                <span>{metric.value}</span>
+                {metric.suffix && (
+                  <span className="text-xs font-normal" style={{ color: '#666680' }}>{metric.suffix}</span>
+                )}
+                {metric.key === 'tps' && (
+                  <span
+                    className="text-xs font-normal ml-0.5"
+                    style={{ color: tpsDirection === 'up' ? '#00ff88' : '#ff4466' }}
+                  >
+                    {tpsDirection === 'up' ? '↑' : '↓'}
+                  </span>
+                )}
               </div>
             </div>
           ))}
