@@ -25,6 +25,7 @@ interface RevealRow {
   timestamp: number
   isNew: boolean
   matching?: boolean
+  glow?: boolean
 }
 
 interface TickerEvent {
@@ -88,6 +89,7 @@ export default function VeilForgeDashboard() {
   const [blockFlash, setBlockFlash] = useState(false)
   const [tpsDirection, setTpsDirection] = useState<'up' | 'down'>('up')
   const prevTpsRef = useRef(247)
+  const [now, setNow] = useState(Date.now())
   const [agentStats, setAgentStats] = useState([
     { ...AGENTS[0], spread: 0.12, orders: 47, pnl: 1247.50, activity: 75, lastAction: 'BID 1.20 WETH @ 3002' },
     { ...AGENTS[1], spread: 0.08, orders: 31, pnl: 892.30, activity: 45, lastAction: 'ASK 0.85 WETH @ 2998' },
@@ -104,6 +106,7 @@ export default function VeilForgeDashboard() {
       })
       setBlockFlash(true)
       setTimeout(() => setBlockFlash(false), 300)
+      setNow(Date.now())
     }, 1000)
     return () => clearInterval(interval)
   }, [])
@@ -206,7 +209,17 @@ export default function VeilForgeDashboard() {
           amount,
           timestamp: Date.now(),
           isNew: true,
+          glow: true,
         }
+
+        // This commit has now transitioned into a reveal — remove it from COMMITS
+        setCommits(prev => prev.filter(c => c.id !== newCommit.id))
+
+        // Clear the cyan glow highlight after 400ms
+        const revealId = newReveal.id
+        setTimeout(() => {
+          setReveals(prev => prev.map(r => r.id === revealId ? { ...r, glow: false } : r))
+        }, 400)
 
         // Add reveal ticker event
         setTicker(prev => {
@@ -326,6 +339,11 @@ export default function VeilForgeDashboard() {
           50% { background: rgba(0, 212, 255, 0.7); }
         }
         .row-matching { animation: match-flash 300ms ease-in-out 2; }
+        @keyframes reveal-glow {
+          0% { background: rgba(0, 212, 255, 0.5); box-shadow: inset 0 0 18px rgba(0, 212, 255, 0.5); }
+          100% { background: #111118; box-shadow: inset 0 0 0 rgba(0, 212, 255, 0); }
+        }
+        .row-glow { animation: reveal-glow 400ms ease-out forwards; }
       `}</style>
       
       <div className="h-screen w-full flex flex-col overflow-hidden" style={{ background: '#0a0a0f', minWidth: '1280px' }}>
@@ -408,20 +426,38 @@ export default function VeilForgeDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {commits.map(commit => (
+                    {commits.map(commit => {
+                      const age = (now - commit.timestamp) / 1000
+                      const faded = age > 3
+                      return (
                       <tr 
                         key={commit.id} 
                         className={commit.isNew ? 'row-enter' : ''}
-                        style={{ background: '#111118', borderBottom: '1px solid #1a1a2e' }}
+                        style={{ 
+                          background: '#111118', 
+                          borderBottom: '1px solid #1a1a2e',
+                          opacity: faded ? 0.6 : 1,
+                          transition: 'opacity 600ms ease',
+                        }}
                       >
                         <td className="p-2 font-mono-jetbrains" style={{ color: '#666680' }}>{commit.agentShort}</td>
-                        <td className="p-2 font-mono-jetbrains" style={{ color: '#00d4ff' }}>{commit.hashShort}</td>
+                        <td 
+                          className="p-2 font-mono-jetbrains transition-all duration-300"
+                          style={{ 
+                            color: '#00d4ff',
+                            textShadow: commit.isNew ? '0 0 8px rgba(0, 212, 255, 0.9)' : 'none',
+                            filter: commit.isNew ? 'brightness(1.4)' : 'brightness(1)',
+                          }}
+                        >
+                          {commit.hashShort}
+                        </td>
                         <td className="p-2 font-mono-jetbrains text-white">{commit.block}</td>
                         <td className="p-2">
                           <span className="px-1 rounded text-xs" style={{ background: '#1a1a2e', color: '#666680' }}>PENDING</span>
                         </td>
                       </tr>
-                    ))}
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -431,7 +467,11 @@ export default function VeilForgeDashboard() {
             <div className="flex-1 flex flex-col overflow-hidden rounded" style={{ background: '#0d0d14', border: '1px solid #1a1a2e' }}>
               <div className="flex items-center justify-between p-3 border-b" style={{ borderColor: '#1a1a2e' }}>
                 <span className="text-xs uppercase tracking-widest" style={{ color: '#666680' }}>REVEALS</span>
-                <span className="text-xs px-2 py-0.5 rounded" style={{ background: '#1a1a2e', color: '#00d4ff' }}>{reveals.length}</span>
+                <span className="text-xs px-2 py-0.5 rounded font-mono-jetbrains" style={{ background: '#1a1a2e' }}>
+                  <span style={{ color: '#00ff88' }}>{reveals.filter(r => r.direction === 'BID').length} BID</span>
+                  <span style={{ color: '#666680' }}> / </span>
+                  <span style={{ color: '#ff4466' }}>{reveals.filter(r => r.direction === 'ASK').length} ASK</span>
+                </span>
               </div>
               <div className="flex-1 overflow-hidden">
                 <table className="w-full text-xs">
@@ -448,7 +488,7 @@ export default function VeilForgeDashboard() {
                     {reveals.map(reveal => (
                       <tr 
                         key={reveal.id}
-                        className={`${reveal.isNew ? 'row-enter' : ''} ${reveal.matching ? 'row-matching' : ''}`}
+                        className={`${reveal.isNew ? 'row-enter' : ''} ${reveal.matching ? 'row-matching' : ''} ${reveal.glow ? 'row-glow' : ''}`}
                         style={{ 
                           background: '#111118', 
                           borderBottom: '1px solid #1a1a2e',
