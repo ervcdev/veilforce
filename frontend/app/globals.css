@@ -10,20 +10,6 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: 'JetBrains Mono', monospace;
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -44,10 +30,7 @@
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
-  
+
   /* VeilForge custom colors */
   --color-veilforge-bg: #0a0a0f;
   --color-veilforge-card: #0d0d14;
@@ -78,20 +61,7 @@
   --border: 240 30% 14%;
   --input: 240 30% 14%;
   --ring: 194 100% 43%;
-  --chart-1: 194 100% 43%;
-  --chart-2: 145 100% 50%;
-  --chart-3: 351 100% 63%;
-  --chart-4: 240 10% 55%;
-  --chart-5: 240 30% 14%;
   --radius: 0.5rem;
-  --sidebar: 240 40% 6%;
-  --sidebar-foreground: 0 0% 95%;
-  --sidebar-primary: 194 100% 43%;
-  --sidebar-primary-foreground: 240 100% 4%;
-  --sidebar-accent: 240 20% 15%;
-  --sidebar-accent-foreground: 0 0% 95%;
-  --sidebar-border: 240 30% 14%;
-  --sidebar-ring: 194 100% 43%;
 }
 
 .dark {
@@ -113,19 +83,6 @@
   --border: 240 30% 14%;
   --input: 240 30% 14%;
   --ring: 194 100% 43%;
-  --chart-1: 194 100% 43%;
-  --chart-2: 145 100% 50%;
-  --chart-3: 351 100% 63%;
-  --chart-4: 240 10% 55%;
-  --chart-5: 240 30% 14%;
-  --sidebar: 240 40% 6%;
-  --sidebar-foreground: 0 0% 95%;
-  --sidebar-primary: 194 100% 43%;
-  --sidebar-primary-foreground: 240 100% 4%;
-  --sidebar-accent: 240 20% 15%;
-  --sidebar-accent-foreground: 0 0% 95%;
-  --sidebar-border: 240 30% 14%;
-  --sidebar-ring: 194 100% 43%;
 }
 
 @layer base {
@@ -157,19 +114,12 @@
   100% { color: inherit; }
 }
 
-@keyframes ticker {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
-}
-
 @keyframes agentGlow {
   0%   { box-shadow: none; }
   50%  { box-shadow: 0 0 0 1px #00d4ff, 0 0 16px rgba(0,212,255,0.25); }
   100% { box-shadow: none; }
 }
 
-.animate-slide-in    { animation: slideInTop 300ms ease-out forwards; }
-.animate-flash       { animation: flashWhite 200ms ease-in-out; }
-.animate-ticker      { animation: ticker 20s linear infinite; }
-.animate-agent-glow  { animation: agentGlow 600ms ease-in-out; }
-.animate-ticker:hover { animation-play-state: paused; }
+.animate-slide-in   { animation: slideInTop 300ms ease-out forwards; }
+.animate-flash      { animation: flashWhite 200ms ease-in-out; }
+.animate-agent-glow { animation: agentGlow 600ms ease-in-out; }

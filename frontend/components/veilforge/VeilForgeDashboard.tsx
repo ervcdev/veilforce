@@ -320,7 +320,6 @@ export default function VeilForgeDashboard() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
         .font-mono-jetbrains { font-family: 'JetBrains Mono', monospace; }
         @keyframes ticker {
           from { transform: translateX(0); }
