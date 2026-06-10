@@ -1,26 +1,125 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans);
+  --font-mono: 'JetBrains Mono', monospace;
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+
+  /* VeilForge custom colors */
+  --color-veilforge-bg: #0a0a0f;
+  --color-veilforge-card: #0d0d14;
+  --color-veilforge-border: #1a1a2e;
+  --color-veilforge-accent: #00d4ff;
+  --color-veilforge-bid: #00ff88;
+  --color-veilforge-ask: #ff4466;
+  --color-veilforge-muted: #666680;
+  --color-veilforge-ticker: #080810;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  --background: 240 100% 4%;
+  --foreground: 0 0% 95%;
+  --card: 240 40% 6%;
+  --card-foreground: 0 0% 95%;
+  --popover: 240 40% 6%;
+  --popover-foreground: 0 0% 95%;
+  --primary: 194 100% 43%;
+  --primary-foreground: 240 100% 4%;
+  --secondary: 240 20% 15%;
+  --secondary-foreground: 0 0% 95%;
+  --muted: 240 20% 15%;
+  --muted-foreground: 240 10% 55%;
+  --accent: 194 100% 43%;
+  --accent-foreground: 240 100% 4%;
+  --destructive: 0 84% 60%;
+  --border: 240 30% 14%;
+  --input: 240 30% 14%;
+  --ring: 194 100% 43%;
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: 240 100% 4%;
+  --foreground: 0 0% 95%;
+  --card: 240 40% 6%;
+  --card-foreground: 0 0% 95%;
+  --popover: 240 40% 6%;
+  --popover-foreground: 0 0% 95%;
+  --primary: 194 100% 43%;
+  --primary-foreground: 240 100% 4%;
+  --secondary: 240 20% 15%;
+  --secondary-foreground: 0 0% 95%;
+  --muted: 240 20% 15%;
+  --muted-foreground: 240 10% 55%;
+  --accent: 194 100% 43%;
+  --accent-foreground: 240 100% 4%;
+  --destructive: 0 84% 60%;
+  --border: 240 30% 14%;
+  --input: 240 30% 14%;
+  --ring: 194 100% 43%;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* JetBrains Mono font utility */
+.font-jet {
+  font-family: 'JetBrains Mono', monospace;
 }
+
+/* VeilForge custom animations */
+@keyframes slideInTop {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes flashWhite {
+  0%   { color: inherit; }
+  50%  { color: #ffffff; }
+  100% { color: inherit; }
+}
+
+@keyframes agentGlow {
+  0%   { box-shadow: none; }
+  50%  { box-shadow: 0 0 0 1px #00d4ff, 0 0 16px rgba(0,212,255,0.25); }
+  100% { box-shadow: none; }
+}
+
+.animate-slide-in   { animation: slideInTop 300ms ease-out forwards; }
+.animate-flash      { animation: flashWhite 200ms ease-in-out; }
+.animate-agent-glow { animation: agentGlow 600ms ease-in-out; }
