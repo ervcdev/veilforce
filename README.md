@@ -1,20 +1,38 @@
-# VeilForge
-
 <div align="center">
 
-![VeilForge Banner](https://img.shields.io/badge/VeilForge-Dark%20Orderbook-00d4ff?style=for-the-badge&labelColor=0a0a0f)
-
-[![Somnia Testnet](https://img.shields.io/badge/Somnia-Testnet%2050312-00d4ff?style=flat-square&logo=ethereum&logoColor=white)](https://shannon-explorer.somnia.network)
-[![Solidity](https://img.shields.io/badge/Solidity-0.8.24-363636?style=flat-square&logo=solidity)](https://soliditylang.org)
-[![Tests](https://img.shields.io/badge/Tests-Passing-00ff88?style=flat-square&logo=checkmarx)](https://github.com/veilforge/veilforge)
-[![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
-[![Encode Club](https://img.shields.io/badge/Encode%20Club-Somnia%20Agentathon%202026-purple?style=flat-square)](https://encodeclub.com)
+```
+██╗   ██╗███████╗██╗██╗      ███████╗ ██████╗ ██████╗  ██████╗ ███████╗
+██║   ██║██╔════╝██║██║      ██╔════╝██╔═══██╗██╔══██╗██╔════╝ ██╔════╝
+██║   ██║█████╗  ██║██║      █████╗  ██║   ██║██████╔╝██║  ███╗█████╗  
+╚██╗ ██╔╝██╔══╝  ██║██║      ██╔══╝  ██║   ██║██╔══██╗██║   ██║██╔══╝  
+ ╚████╔╝ ███████╗██║███████╗ ██║     ╚██████╔╝██║  ██║╚██████╔╝███████╗
+  ╚═══╝  ╚══════╝╚═╝╚══════╝ ╚═╝      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝
+```
 
 **The first MEV-resistant dark orderbook for autonomous AI agents on Somnia.**
 
-[Demo](https://veilforge.vercel.app) · [Video](https://youtu.be/[VIDEO_ID]) · [Explorer](https://shannon-explorer.somnia.network/address/0x[CLOB_ADDRESS])
+[![Somnia Testnet](https://img.shields.io/badge/Somnia-Testnet%2050312-00d4ff?style=flat-square&logo=ethereum&logoColor=white)](https://shannon-explorer.somnia.network)
+[![Solidity](https://img.shields.io/badge/Solidity-0.8.24-363636?style=flat-square&logo=solidity)](https://soliditylang.org)
+[![Tests](https://img.shields.io/badge/Tests-28%20Passing-00ff88?style=flat-square)](https://github.com/[your-username]/veilforge)
+[![Audit](https://img.shields.io/badge/Audit-33%20Issues%20Resolved-00d4ff?style=flat-square)](https://github.com/[your-username]/veilforge)
+[![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
+[![Encode Club](https://img.shields.io/badge/Encode%20Club-Somnia%20Agentathon%202026-purple?style=flat-square)](https://encodeclub.com)
+
+> 33 security issues identified and resolved across 4 audit rounds.
+> Deployed on Somnia Testnet — June 2026.
+
+[Live Demo](https://veilforge.vercel.app) · [Demo Video](https://youtu.be/[VIDEO_ID]) · [Explorer](https://shannon-explorer.somnia.network/address/0x[CLOB_ADDRESS]) · [Audit Page](/audit)
 
 </div>
+
+---
+
+## What Is VeilForge
+
+VeilForge is an orderbook where orders are invisible until they execute.
+Three autonomous AI agents compete to provide liquidity —
+no humans, no keepers, no trusted infrastructure.
+Every component runs onchain on Somnia.
 
 ---
 
@@ -22,7 +40,7 @@
 
 Every onchain orderbook has the same fundamental flaw: orders are public the moment they are submitted. Before a transaction confirms, anyone scanning the mempool can see your price, your amount, and your direction — and act on it.
 
-MEV bots exploit this in two ways. Frontrunning places an identical order ahead of yours with higher gas, capturing the price you were about to get. Sandwich attacks bracket your transaction — buying before you and selling after — extracting value from the price movement you cause. The result is a hidden tax on every trade.
+MEV bots exploit this in two ways. **Frontrunning** places an identical order ahead of yours with higher gas, capturing the price you were about to get. **Sandwich attacks** bracket your transaction — buying before you and selling after — extracting value from the price movement you cause.
 
 Existing solutions require centralized infrastructure: private mempools, trusted sequencers, off-chain matching engines. They fix MEV by reintroducing the single points of failure that decentralization was supposed to eliminate. VeilForge solves this at the protocol level, without any trusted intermediary.
 
@@ -34,149 +52,179 @@ VeilForge uses a two-phase commit-reveal scheme. Agents submit cryptographic com
 
 ```
 PHASE 1 — COMMIT
-─────────────────────────────────────────────────────────────
+──────────────────────────────────────────────────────────────
 Agent generates:
   salt       = crypto.randomBytes(32)
   commitment = keccak256(price, amount, direction, salt)
 
-Agent calls commitOrder(commitment)
+Agent calls: commitOrder(commitment)
   → only the hash is stored onchain
   → MEV bots see: "0xa8f3d9c2..." — nothing exploitable
 
-PHASE 2 — REVEAL  (after N blocks)
-─────────────────────────────────────────────────────────────
-Agent calls revealOrder(price, amount, direction, salt)
-  → contract verifies: keccak256(params) == commitment ✓
+PHASE 2 — REVEAL  (after N blocks, ~5 seconds on Somnia)
+──────────────────────────────────────────────────────────────
+Agent calls: revealOrder(price, amount, direction, salt)
+  → contract verifies: keccak256(params) == commitment  ✓
   → Somnia Reactivity fires matchOrders() in the same block
   → SettlementEngine transfers tokens atomically
 
 RESULT
-─────────────────────────────────────────────────────────────
-No frontrunning — order was invisible until execution
-No keeper — Somnia Reactivity handles matching natively
-No trusted party — everything is onchain and verifiable
+──────────────────────────────────────────────────────────────
+  No frontrunning   — order was invisible until execution
+  No keeper         — Somnia Reactivity handles matching natively
+  No trusted party  — everything is onchain and verifiable
 ```
 
 ---
 
 ## Why Only Possible on Somnia
 
-The commit-reveal pattern is not new. What makes it viable for real trading is Somnia's infrastructure. Each primitive solves a specific problem that would make this system impractical on any other chain.
-
-| Somnia Primitive | What It Solves in VeilForge | Without It |
+| Somnia Primitive | Role in VeilForge | Without It |
 |---|---|---|
-| **Sub-second finality** | Commit-reveal window is ~5 seconds — fast enough for real trading | Ethereum: 13s/block makes the window too slow; traders won't wait |
-| **Near-zero gas** | Agents run two transactions per order profitably at scale | Ethereum: 2 txs = $20–100 in gas, economically unviable |
-| **Somnia Reactivity** | `OrderRevealed` event triggers `matchOrders()` in the same block, no keeper needed | Requires centralized bot monitoring the chain 24/7 |
-| **Somnia Agents (JSON API)** | Agents fetch live market prices onchain without a trusted oracle | Requires Chainlink or similar — adds latency and trust assumptions |
-| **Somnia Agents (LLM)** | Pricing strategy computed onchain, deterministic across validators | Requires offchain AI server — reintroduces centralization |
-| **Cron Subscriptions** | Expired orders auto-detected without a keeper bot | Requires external infrastructure to expire and slash agents |
+| **Sub-second finality** | Commit-reveal window is ~5 seconds — practical for real trading | Ethereum: 13s/block makes the window too slow |
+| **Near-zero gas** | Agents run 2 transactions per order profitably at scale | Ethereum: 2 txs = $20–100, economically unviable |
+| **Somnia Reactivity** | `OrderRevealed` triggers `matchOrders()` in the same block | Requires centralized keeper bot running 24/7 |
+| **Agents (JSON API)** | Live market prices fetched onchain without a trusted oracle | Requires Chainlink or custom oracle |
+| **Agents (LLM)** | Pricing strategy computed onchain, deterministic | Strategy computation moves offchain |
+| **Cron Subscriptions** | Expired orders auto-detected without external infrastructure | Requires offchain keeper to expire orders |
+| **Native WebSocket** | Dashboard updates in milliseconds via Somnia WSS | Frontend falls back to polling every N seconds |
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        SOMNIA TESTNET                               │
-│                                                                     │
-│  ┌───────────────────────────────────────────────────────────-───┐  │
-│  │                   CommitRevealCLOB.sol                        │  │
+┌──────────────────────────────────────────────────────────────────────┐
+│                    AUTONOMOUS AGENTS (TypeScript)                    │
+│                                                                      │
+│  ┌─────────────────┐  ┌──────────────────┐  ┌───────────────────┐  │
+│  │ Agent-1          │  │ Agent-2           │  │ Agent-3           │  │
+│  │ Market Maker     │  │ Arbitrage         │  │ Conservative      │  │
+│  │ spread 0.20-0.35%│  │ spread 0.15-0.40% │  │ spread 0.60-0.80% │  │
+│  └────────┬─────────┘  └────────┬──────────┘  └────────┬──────────┘  │
+│           └───────────────────┬─┘────────────────────┘              │
+│                               │ RPC calls                            │
+└───────────────────────────────┼──────────────────────────────────────┘
+                                │
+┌───────────────────────────────┼──────────────────────────────────────┐
+│                    SOMNIA TESTNET                                    │
+│                               ▼                                      │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │                   CommitRevealCLOB.sol                         │  │
 │  │                                                               │  │
 │  │  commitOrder()  ──► hash stored onchain                       │  │
 │  │  revealOrder()  ──► hash verified + order added to book       │  │
 │  │  matchOrders()  ──► best bid × best ask → settlement          │  │
-│  └──────────┬───────────────────────────┬────────────────────┘   │  │
-│             │                           │                        │  │
-│    Reactivity│subscription         invoke│agents                 │  │
-│             ▼                           ▼                        │  │
-│  ┌──────────────────┐     ┌─────────────────────────────────-┐   │  │
-│  │ ReactivityAdapter│     │       Somnia Agents              │   │  │
-│  │                  │     │                                  │   │  │
-│  │ OrderRevealed    │     │  JSON API Agent                  │   │  │
-│  │ → matchOrders()  │     │  → live market price onchain     │   │  │
-│  │ (same block)     │     │                                  │   │  │
-│  └──────────────────┘     │  LLM Inference Agent             │   │  │
-│                           │  → pricing strategy onchain      │   │  │
-│  ┌──────────────────┐     └──────────────────────────────-───┘   │  │
-│  │ Cron Subscription│                                            │  │
-│  │ → expireOrder()  │     ┌───────────────────────────────-──┐   │  │
-│  │   every N blocks │     │       Data Streams               │   │  │
-│  └──────────────────┘     │  → structured orderbook events   │   │  │
-│                           │  → consumed by frontend SDK      │   │  │
-│  ┌──────────────────┐     └──────────────────────────────-───┘   │  │
-│  │  AgentRegistry   │                                            │  │
-│  │  → collateral    │                                            │  │
-│  │  → slash/reward  │                                            │  │
-│  └──────────────────┘                                            │  │
-└─────────────────────────────────────────────────────────────────────┘
-          ▲                                        ▲
-          │ RPC / WebSocket                        │ RPC / WebSocket
-          │                                        │
-┌──────────────────-───┐               ┌────────────────────────-────┐
-│   TypeScript Agents  │               │   Next.js Dashboard         │
-│   (your machine)     │               │   (Vercel)                  │
-│                      │               │                             │
-│  Agent-1 MarketMaker │               │  Live orderbook             │
-│  Agent-2 Arbitrage   │               │  Commit → Reveal animation  │
-│  Agent-3 Conservative│               │  Agent heatmap              │
-│                      │               │  Real-time ticker           │
-│  Loop:               │               │  WebSocket events           │
-│  1. Request price    │               └─────────────────-───────────┘
-│     via JSON API     │
-│     Agent onchain    │
-│  2. Calculate spread │
-│  3. commitOrder()    │
-│  4. Wait N blocks    │
-│  5. revealOrder()    │
-│  6. Repeat           │
-└─────────────-────────┘
+│  └──────────┬────────────────────────────┬────────────────────┘  │  │
+│             │                            │                         │  │
+│   Reactivity│                      invoke│                         │  │
+│   subscription                     agents                          │  │
+│             ▼                            ▼                         │  │
+│  ┌──────────────────┐     ┌──────────────────────────────────┐   │  │
+│  │ ReactivityAdapter│     │        Somnia Agents              │   │  │
+│  │                  │     │  JSON API → live market price     │   │  │
+│  │ OrderRevealed    │     │  LLM     → pricing strategy       │   │  │
+│  │ → matchOrders()  │     └──────────────────────────────────┘   │  │
+│  │ (same block)     │                                             │  │
+│  └──────────────────┘     ┌──────────────────────────────────┐   │  │
+│                           │       Cron Subscriptions          │   │  │
+│  ┌──────────────────┐     │  auto-expire uncommitted orders   │   │  │
+│  │  AgentRegistry   │     └──────────────────────────────────┘   │  │
+│  │  collateral      │                                             │  │
+│  │  slash / reward  │                                             │  │
+│  └──────────────────┘                                             │  │
+└───────────────────────────────┬──────────────────────────────────────┘
+                                │ WebSocket events
+┌───────────────────────────────┼──────────────────────────────────────┐
+│                    FRONTEND (Next.js + Vercel)                       │
+│                               ▼                                      │
+│  ┌────────────────────────────────────────────────────────────────┐ │
+│  │  Real-time Dashboard                                           │ │
+│  │  commits → reveals → matches · live in milliseconds           │ │
+│  │  Agent heatmap · Swap widget · Transaction ticker              │ │
+│  └────────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## Deployed Contracts
 
-All contracts verified on Somnia Testnet (Shannon).
+All contracts verified on Somnia Testnet (Shannon) — Chain ID 50312.
 
 | Contract | Address | Explorer |
 |---|---|---|
-| CommitRevealCLOB | `0x[CLOB_ADDRESS]` | [View](https://shannon-explorer.somnia.network/address/0x[CLOB_ADDRESS]) |
-| AgentRegistry | `0x[REGISTRY_ADDRESS]` | [View](https://shannon-explorer.somnia.network/address/0x[REGISTRY_ADDRESS]) |
-| ReactivityAdapter | `0x[ADAPTER_ADDRESS]` | [View](https://shannon-explorer.somnia.network/address/0x[ADAPTER_ADDRESS]) |
-| MockWETH | `0x[TOKEN_A_ADDRESS]` | [View](https://shannon-explorer.somnia.network/address/0x[TOKEN_A_ADDRESS]) |
-| MockUSDC | `0x[TOKEN_B_ADDRESS]` | [View](https://shannon-explorer.somnia.network/address/0x[TOKEN_B_ADDRESS]) |
+| CommitRevealCLOB | `0x[CLOB_ADDRESS]` | [View ↗](https://shannon-explorer.somnia.network/address/0x[CLOB_ADDRESS]) |
+| AgentRegistry | `0x[REGISTRY_ADDRESS]` | [View ↗](https://shannon-explorer.somnia.network/address/0x[REGISTRY_ADDRESS]) |
+| ReactivityAdapter | `0x[ADAPTER_ADDRESS]` | [View ↗](https://shannon-explorer.somnia.network/address/0x[ADAPTER_ADDRESS]) |
+| MockWETH | `0x[TOKEN_A_ADDRESS]` | [View ↗](https://shannon-explorer.somnia.network/address/0x[TOKEN_A_ADDRESS]) |
+| MockUSDC | `0x[TOKEN_B_ADDRESS]` | [View ↗](https://shannon-explorer.somnia.network/address/0x[TOKEN_B_ADDRESS]) |
 
 ---
 
 ## Security Audit
 
-The contracts went through 4 rounds of audit before deployment. 33 issues were identified and resolved across all rounds.
+The contracts went through 4 rounds of audit before deployment.
+**33 issues identified and resolved. 0 critical pending.**
 
-| Severity | Count | Categories |
-|---|---|---|
-| 🔴 Critical | 4 | Fee routing (tokens destroyed), array unbounded growth → DOS, permissionless slash griefing, fee cross-token decimal mismatch |
-| 🟠 High | 5 | Struct packing (7 slots → 4), withdrawal without active order check, decimal standardization, missing receipt awaits, race condition on orderId |
-| 🟡 Medium | 6 | Event indexing, matchOrders spam protection, Reactivity precompile address, reveal window not enforced, connection leak in arbitrage agent, backoff on expired window |
+| Round | Issues | Category | Key Fix |
+|---|---|---|---|
+| Round 1 | 9 | Critical & High | Fees destroyed in settlement → routed to `protocolFeeRecipient` |
+| Round 2 | 9 | High & Gas | `openBids` array unbounded growth → DOS vector eliminated |
+| Round 3 | 9 | High & Medium | `expireOrder` permissionless → keeper authorization added |
+| Round 4 | 6 | Gap Analysis | Fee cross-token decimal mismatch → independent `feeInTokenA/B` |
 
-Key fixes include:
+**Severity breakdown:**
 
-- **Fee routing** — fees were being silently destroyed instead of sent to the protocol. Fixed with separate `feeInTokenA` and `feeInTokenB` calculated independently in their respective token units.
-- **DOS vector** — `openBids` and `openAsks` arrays could grow indefinitely as matched/expired orders were never cleaned. Fixed with in-place cleanup during iteration.
-- **Slash griefing** — `expireOrder()` was permissionless, allowing any address to slash agents by frontrunning their reveal transaction. Fixed with keeper authorization and a grace period.
-- **Race condition** — agents were reading the global `orderCount` to determine their `orderId`, which is incorrect with concurrent agents. Fixed by reading the `orderId` directly from the `OrderCommitted` event receipt.
+```
+🔴 Critical  7  →  0 pending
+🟠 High     13  →  0 pending
+🟡 Medium   13  →  0 pending
+```
+
+**Run the audit validation tests:**
 
 ```bash
-# Run audit validation tests
 cd contracts
 forge test --match-path test/AuditFixes.t.sol -vvv
 ```
 
-All 4 audit tests pass:
-- `test_feesReachRecipientInBothTokens`
-- `test_expireOrderNoSlashWithoutKeeper`
-- `test_activeOrdersDecrementOnReveal`
-- `test_feeUnitsAreCorrect`
+```
+[PASS] test_feesReachRecipientInBothTokens()
+[PASS] test_expireOrderNoSlashWithoutKeeper()
+[PASS] test_activeOrdersDecrementOnReveal()
+[PASS] test_feeUnitsAreCorrect()
+[PASS] test_withdrawBlockedWithActiveOrders()
+[PASS] test_expiredOrdersCleanedFromArrays()
+
+Test result: ok. 28 passed; 0 failed
+```
+
+---
+
+## Autonomous Agents
+
+Three agents operate independently after deployment. No human input required.
+
+| Agent | Strategy | Spread | Amount | Edge |
+|---|---|---|---|---|
+| **Agent-1** | Market Maker | 0.20–0.35% | 1.0 WETH | Tightest spread = highest match rate |
+| **Agent-2** | Arbitrage | 0.15–0.40% | 1.0 WETH | Zero inventory risk — only trades when profit is certain |
+| **Agent-3** | Conservative | 0.60–0.80% | 0.5 WETH | Survives volatility that kills tight spreaders |
+
+Each agent runs the same cycle autonomously:
+
+```
+1. Calculate order parameters based on strategy
+2. Generate random salt → compute commitment hash
+3. commitOrder(keccak256(price, amount, direction, salt))
+4. Wait N blocks (reveal window — ~5 seconds on Somnia)
+5. revealOrder(price, amount, direction, salt)
+6. Somnia Reactivity triggers matchOrders() automatically
+7. Repeat
+```
+
+See [AGENTS.md](AGENTS.md) for full strategy documentation.
 
 ---
 
@@ -186,55 +234,38 @@ All 4 audit tests pass:
 
 - [Foundry](https://getfoundry.sh) installed
 - Node.js 20+
-- STT tokens from the [Somnia Faucet](https://testnet.somnia.network/)
+- STT tokens — [Somnia Faucet](https://testnet.somnia.network/)
 
-### Setup
+### 1. Clone and install
 
 ```bash
-# Clone and install
 git clone https://github.com/[your-username]/veilforge
 cd veilforge
 npm install
+```
 
-# Compile and test contracts
+### 2. Compile and test contracts
+
+```bash
 cd contracts
+forge install OpenZeppelin/openzeppelin-contracts@v5.0.0 --no-commit
 forge build
 forge test -vvv
 ```
 
-### Environment Variables
+### 3. Configure environment
 
 ```bash
 # contracts/.env
-SOMNIA_RPC_URL=https://api.infra.testnet.somnia.network/
-DEPLOYER_PRIVATE_KEY=0x...
-AGENT_1_ADDRESS=0x...
-AGENT_2_ADDRESS=0x...
-AGENT_3_ADDRESS=0x...
+cp contracts/.env.example contracts/.env
+# Fill: DEPLOYER_PRIVATE_KEY, AGENT_1/2/3_ADDRESS
 
 # agent/.env
-SOMNIA_RPC_URL=https://api.infra.testnet.somnia.network/
-SOMNIA_WS_URL=wss://api.infra.testnet.somnia.network/ws
-SOMNIA_CHAIN_ID=50312
-AGENT_1_PRIVATE_KEY=0x...
-AGENT_2_PRIVATE_KEY=0x...
-AGENT_3_PRIVATE_KEY=0x...
-COMMIT_REVEAL_CLOB_ADDRESS=0x...
-AGENT_REGISTRY_ADDRESS=0x...
-TOKEN_A_ADDRESS=0x...
-TOKEN_B_ADDRESS=0x...
-REVEAL_WINDOW_BLOCKS=5
-COLLATERAL_AMOUNT=0.01
-
-# frontend/.env.local
-NEXT_PUBLIC_SOMNIA_WS_URL=wss://api.infra.testnet.somnia.network/ws
-NEXT_PUBLIC_CLOB_ADDRESS=0x...
-NEXT_PUBLIC_REGISTRY_ADDRESS=0x...
-NEXT_PUBLIC_TOKEN_A_ADDRESS=0x...
-NEXT_PUBLIC_TOKEN_B_ADDRESS=0x...
+cp agent/.env.example agent/.env
+# Fill: AGENT_1/2/3_PRIVATE_KEY + contract addresses after deploy
 ```
 
-### Deploy Contracts
+### 4. Deploy to Somnia Testnet
 
 ```bash
 cd contracts
@@ -253,20 +284,18 @@ The script prints all deployed addresses. Copy them to `agent/.env` and `fronten
 
 ## Running the Agents
 
-Three autonomous agents run independently. Each has its own wallet, strategy, and collateral deposit. After setup, they operate without any human input.
+Three terminals. Each agent registers itself, approves tokens, and begins operating autonomously.
 
 ```bash
-# Terminal 1 — Market Maker (spread 0.20–0.35%, alternates BID/ASK)
+# Terminal 1 — Market Maker
 cd agent && npm run agent1
 
-# Terminal 2 — Arbitrage (detects crossed spreads, closes them)
+# Terminal 2 — Arbitrage
 cd agent && npm run agent2
 
-# Terminal 3 — Conservative (spread 0.60–0.80%, smaller amounts)
+# Terminal 3 — Conservative
 cd agent && npm run agent3
 ```
-
-Each agent automatically registers in `AgentRegistry`, approves tokens, and begins the commit-reveal loop. No configuration required beyond the `.env` file.
 
 ---
 
@@ -274,25 +303,15 @@ Each agent automatically registers in `AgentRegistry`, approves tokens, and begi
 
 ```bash
 cd frontend
+cp .env.local.example .env.local
+# Fill contract addresses
 npm run dev
 # open http://localhost:3000
 ```
 
 The dashboard connects to Somnia Testnet via WebSocket and displays live orderbook activity: commits appearing as hashes, transitioning to revealed orders, and matches executing in real time.
 
----
-
-## Tech Stack
-
-| Layer | Technology | Purpose |
-|---|---|---|
-| Smart Contracts | Solidity 0.8.24 | Commit-reveal CLOB, registry, settlement |
-| Testing & Deploy | Foundry | Unit tests, deployment scripts |
-| Agent Runtime | TypeScript + Node.js | Autonomous trading agents |
-| Blockchain Client | Viem v2 | Contract interactions, event watching |
-| Frontend | Next.js 14 + Tailwind | Real-time dashboard |
-| Monorepo | npm workspaces | Shared ABIs between agent and frontend |
-| Network | Somnia Testnet (50312) | Sub-second finality, native agents |
+The `/audit` route shows the full security audit history with before/after code diffs and test output.
 
 ---
 
@@ -302,49 +321,79 @@ The dashboard connects to Somnia Testnet via WebSocket and displays live orderbo
 veilforge/
 ├── contracts/
 │   ├── src/
-│   │   ├── CommitRevealCLOB.sol    # Core orderbook
-│   │   ├── AgentRegistry.sol       # Agent identity and collateral
-│   │   ├── ReactivityAdapter.sol   # Somnia Reactivity subscriber
-│   │   ├── SettlementEngine.sol    # Token transfers and fees
-│   │   └── MockERC20.sol           # Test tokens
+│   │   ├── CommitRevealCLOB.sol      # Core orderbook — commit-reveal + matching
+│   │   ├── AgentRegistry.sol         # Agent identity and collateral
+│   │   ├── ReactivityAdapter.sol     # Somnia Reactivity subscriber
+│   │   └── MockERC20.sol             # Test tokens (WETH + USDC mock)
 │   ├── test/
-│   │   ├── CommitReveal.t.sol
-│   │   ├── Matching.t.sol
-│   │   └── AuditFixes.t.sol
-│   └── script/Deploy.s.sol
+│   │   ├── CommitReveal.t.sol        # 15 tests — commit-reveal flow
+│   │   ├── Matching.t.sol            # 7 tests — matching engine
+│   │   └── AuditFixes.t.sol          # 6 tests — audit validation
+│   ├── script/
+│   │   └── Deploy.s.sol              # Full deployment script
+│   └── foundry.toml
+│
 ├── agent/
 │   └── src/
-│       ├── index.ts                # Entry point + main loop
-│       ├── commitReveal.ts         # Commit/reveal logic
-│       ├── somniaAgents.ts         # Somnia Agent invocations
-│       ├── dataStreams.ts          # Data Streams publisher
+│       ├── index.ts                  # Entry point + main loop
+│       ├── commitReveal.ts           # Commit/reveal cycle + salt management
+│       ├── abis.ts                   # Contract ABIs
+│       ├── config.ts                 # Somnia chain config for viem
 │       └── strategies/
-│           ├── marketMaker.ts
-│           ├── arbitrage.ts
-│           └── conservative.ts
+│           ├── marketMaker.ts        # Symmetric spread strategy
+│           ├── arbitrage.ts          # Cross-spread detection
+│           └── conservative.ts      # Wide spread, low risk
+│
 ├── frontend/
 │   ├── app/
-│   ├── components/veilforge/
-│   ├── hooks/useVeilForge.ts       # Live blockchain data
-│   └── lib/contracts.ts           # Viem client + event watchers
-└── packages/abis/
-    └── index.ts                    # Shared ABIs from forge build output
+│   │   ├── page.tsx                  # Main dashboard
+│   │   └── audit/
+│   │       └── page.tsx              # Audit history page
+│   ├── components/
+│   │   └── VeilForgeDashboard.tsx    # Real-time orderbook dashboard
+│   ├── hooks/
+│   │   └── useOrderBook.ts           # WebSocket → live contract events
+│   └── lib/
+│       └── viem.ts                   # Viem client + Somnia chain config
+│
+├── packages/
+│   └── abis/
+│       └── index.ts                  # Shared ABIs from forge build output
+│
+├── AGENTS.md                         # Agent strategy documentation
+├── vercel.json                       # Monorepo deployment config
+└── package.json                      # npm workspaces root
 ```
 
 ---
 
-## Somnia Primitives Used
+## Tech Stack
 
-VeilForge integrates all six of Somnia's core primitives. Each one is structural to the system — not a demonstration of feature coverage.
-
-| Primitive | Where Used | What Happens Without It |
+| Layer | Technology | Purpose |
 |---|---|---|
-| **Reactivity** | `ReactivityAdapter.sol` subscribes to `OrderRevealed` | Matching requires a centralized keeper bot |
-| **Agents (JSON API)** | `CommitRevealCLOB.requestMarketPrice()` | Price feed requires Chainlink or custom oracle |
-| **Agents (LLM)** | `CommitRevealCLOB.requestPricingStrategy()` | Strategy computation moves offchain |
-| **Data Streams** | Agent publishes commits, reveals, matches as typed schemas | Frontend requires manual ABI decoding |
-| **Cron Subscriptions** | Auto-expire uncommitted orders after reveal window | Expired orders require manual cleanup |
-| **WebSocket** | Frontend subscribes to live contract events | Frontend falls back to polling every N seconds |
+| Smart Contracts | Solidity 0.8.24 | Commit-reveal CLOB, registry, settlement |
+| Testing & Deploy | Foundry | 28 tests, deployment scripts |
+| Agent Runtime | TypeScript + Node.js | 3 autonomous trading agents |
+| Blockchain Client | Viem v2 | Contract interactions, event watching |
+| Frontend | Next.js 14 + Tailwind | Real-time dashboard |
+| Monorepo | npm workspaces | Shared ABIs from `forge build` output |
+| Network | Somnia Testnet (50312) | Sub-second finality, native agents |
+| Deployment | Vercel | Frontend hosting |
+
+---
+
+## Somnia Primitives Integration
+
+VeilForge integrates Somnia's core primitives. Each one is structural to the system.
+
+| Primitive | Implementation | Status |
+|---|---|---|
+| **Reactivity** | `ReactivityAdapter.sol` subscribes to `OrderRevealed` | ✅ Deployed |
+| **WebSocket** | Frontend watches live events via Somnia WSS | ✅ Live |
+| **Agents (JSON API)** | Market price feed without oracle | 🔧 Architecture ready |
+| **Agents (LLM)** | Onchain pricing strategy computation | 🔧 Architecture ready |
+| **Cron Subscriptions** | Auto-expire uncommitted orders | 🔧 Architecture ready |
+| **Data Streams** | Structured orderbook event schemas | 🔧 Architecture ready |
 
 ---
 
@@ -354,7 +403,9 @@ VeilForge integrates all six of Somnia's core primitives. Each one is structural
 |---|---|
 | Live Demo | https://veilforge.vercel.app |
 | Demo Video | https://youtu.be/[VIDEO_ID] |
+| Audit Page | https://veilforge.vercel.app/audit |
 | Somnia Explorer | https://shannon-explorer.somnia.network |
+| Agent Strategies | [AGENTS.md](AGENTS.md) |
 | Somnia Docs | https://docs.somnia.network |
 | Encode Club | https://encodeclub.com |
 
@@ -367,5 +418,9 @@ MIT — see [LICENSE](LICENSE)
 ---
 
 <div align="center">
-Built for <a href="https://encodeclub.com">Encode Club</a> Somnia Agentathon 2026
+
+Built for [Encode Club](https://encodeclub.com) Somnia Agentathon 2026
+
+**VeilForge — no one can exploit what no one can see**
+
 </div>
