@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Shield } from 'lucide-react'
+import { createPublicClient, webSocket } from 'viem'
+import { somniaTestnet } from '@/lib/chain'
 
 // Types
 interface CommitRow {
@@ -76,6 +78,8 @@ export default function VeilForgeDashboard() {
   })
   const [blockNumber, setBlockNumber] = useState(19847523)
   const blockNumberRef = useRef(19847523)
+  const [wsConnected, setWsConnected] = useState(false)
+  const wsUnwatchRef = useRef<(() => void) | null>(null)
   const matchedIdsRef = useRef<Set<string>>(new Set())
   const [glowingAgent, setGlowingAgent] = useState<string | null>(null)
   const [bestRate, setBestRate] = useState<BestRate>({
@@ -96,19 +100,79 @@ export default function VeilForgeDashboard() {
     { ...AGENTS[2], spread: 0.18, orders: 18, pnl: 234.80, activity: 25, lastAction: 'BID 0.40 WETH @ 2995' },
   ])
 
-  // Block number increment
+  // Real-time block number via Somnia Testnet WebSocket, with simulated fallback
   useEffect(() => {
-    const interval = setInterval(() => {
-      setBlockNumber(prev => {
-        const newVal = prev + 1
-        blockNumberRef.current = newVal
-        return newVal
-      })
+    let fallbackInterval: ReturnType<typeof setInterval> | null = null
+    let didReceiveBlock = false
+
+    const applyBlock = (n: bigint | number) => {
+      const num = typeof n === 'bigint' ? Number(n) : n
+      setBlockNumber(num)
+      blockNumberRef.current = num
       setBlockFlash(true)
       setTimeout(() => setBlockFlash(false), 300)
       setNow(Date.now())
-    }, 1000)
-    return () => clearInterval(interval)
+    }
+
+    const startFallback = () => {
+      if (fallbackInterval) return
+      fallbackInterval = setInterval(() => {
+        setBlockNumber(prev => {
+          const next = prev + 1
+          blockNumberRef.current = next
+          return next
+        })
+        setBlockFlash(true)
+        setTimeout(() => setBlockFlash(false), 300)
+        setNow(Date.now())
+      }, 1000)
+    }
+
+    // Timeout: if no block arrives within 5s, start the fallback counter
+    const fallbackTimeout = setTimeout(() => {
+      if (!didReceiveBlock) {
+        setWsConnected(false)
+        startFallback()
+      }
+    }, 5000)
+
+    try {
+      const client = createPublicClient({
+        chain: somniaTestnet,
+        transport: webSocket('wss://api.infra.testnet.somnia.network/ws', {
+          reconnect: { attempts: 3, delay: 1000 },
+        }),
+      })
+
+      const unwatch = client.watchBlockNumber({
+        onBlockNumber: (blockNum) => {
+          if (!didReceiveBlock) {
+            didReceiveBlock = true
+            clearTimeout(fallbackTimeout)
+            setWsConnected(true)
+          }
+          applyBlock(blockNum)
+        },
+        onError: () => {
+          setWsConnected(false)
+          startFallback()
+        },
+      })
+
+      wsUnwatchRef.current = unwatch
+    } catch {
+      setWsConnected(false)
+      startFallback()
+    }
+
+    return () => {
+      clearTimeout(fallbackTimeout)
+      if (fallbackInterval) clearInterval(fallbackInterval)
+      if (wsUnwatchRef.current) {
+        wsUnwatchRef.current()
+        wsUnwatchRef.current = null
+      }
+    }
   }, [])
 
   // Track TPS direction since last change
@@ -354,12 +418,22 @@ export default function VeilForgeDashboard() {
             <span className="text-sm" style={{ color: '#666680' }}>SOMNIA TESTNET</span>
           </div>
           <div className="flex items-center gap-3">
-            <span
-              className="font-mono-jetbrains text-xs transition-colors duration-200"
-              style={{ color: blockFlash ? '#00d4ff' : 'white' }}
-            >
-              BLOCK #{blockNumber.toLocaleString()}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ background: wsConnected ? '#00ff88' : '#666680' }}
+              />
+              <span
+                className="font-mono-jetbrains text-xs transition-colors duration-200"
+                style={{ color: blockFlash ? '#00d4ff' : 'white' }}
+              >
+                {wsConnected
+                  ? `BLOCK #${blockNumber.toLocaleString()}`
+                  : blockNumber === 19847523
+                    ? 'Connecting...'
+                    : `BLOCK #${blockNumber.toLocaleString()}`}
+              </span>
+            </div>
             <span style={{ color: '#1a1a2e' }}>|</span>
             <span className="text-xs" style={{ color: '#00d4ff' }}>3 AGENTS ACTIVE</span>
           </div>
