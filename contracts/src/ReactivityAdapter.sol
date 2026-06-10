@@ -4,15 +4,15 @@ pragma solidity ^0.8.24;
 import "./CommitRevealCLOB.sol";
 
 /// @notice Adaptador que recibe callbacks de Somnia Reactivity
-/// y dispara el matching automáticamente
+/// y dispara el matching automáticamente.
+/// devMode = true durante el hackathon por si el precompile
+/// no está activo en Shannon Testnet.
 contract ReactivityAdapter {
 
-    // Dirección del Reactivity Precompile de Somnia
-    // Verificar en: https://docs.somnia.network/developer/reactivity/what-is-reactivity
-    address public constant REACTIVITY_PRECOMPILE = address(0x0100);
-
     CommitRevealCLOB public clob;
-    address public owner;
+    address          public owner;
+    address          public reactivityPrecompile;
+    bool             public devMode;
 
     event ReactivityTriggered(bytes32 indexed eventId, uint256 blockNumber);
 
@@ -23,45 +23,51 @@ contract ReactivityAdapter {
 
     modifier onlyReactivity() {
         require(
-            msg.sender == REACTIVITY_PRECOMPILE,
-            "Only Somnia Reactivity can call this"
+            devMode || msg.sender == reactivityPrecompile,
+            "Only Somnia Reactivity"
         );
         _;
     }
 
-    constructor(address _clob) {
-        clob  = CommitRevealCLOB(_clob);
-        owner = msg.sender;
+    constructor(address _clob, address _reactivityPrecompile) {
+        clob                 = CommitRevealCLOB(_clob);
+        owner                = msg.sender;
+        reactivityPrecompile = _reactivityPrecompile;
+        devMode              = true; // activo por default para el hackathon
     }
 
     /// @notice Callback llamado por Somnia Reactivity cuando
     /// se emite el evento OrderRevealed en CommitRevealCLOB
     function handleOrderRevealed(bytes calldata eventData) external onlyReactivity {
-        // Decodificar el orderId del evento
-        (uint256 orderId,,,,) = abi.decode(
+        (uint256 orderId,,,,,) = abi.decode(
             eventData,
-            (uint256, address, uint256, uint256, uint8)
+            (uint256, address, uint256, uint256, uint8, uint256)
         );
-
         emit ReactivityTriggered(bytes32(orderId), block.number);
-
-        // Disparar matching en el mismo bloque
         clob.matchOrders();
     }
 
     /// @notice Fallback para cuando Reactivity pasa datos adicionales
-    function handleEvent(bytes calldata eventData) external onlyReactivity {
+    function handleEvent(bytes calldata) external onlyReactivity {
         clob.matchOrders();
     }
 
-    /// @notice Registrar la suscripción a Somnia Reactivity
-    /// Ver: https://docs.somnia.network/developer/reactivity/tooling/subscription-management
-    /// Esto se hace via SDK después del deploy, no desde el contrato
+    // ─── Admin ─────────────────────────────────────────────────────────────────
+
+    function setDevMode(bool _devMode) external onlyOwner {
+        devMode = _devMode;
+    }
+
+    function setReactivityPrecompile(address _addr) external onlyOwner {
+        reactivityPrecompile = _addr;
+    }
+
+    /// @notice Info para registrar la suscripción via Somnia Reactivity SDK
     function getSubscriptionInfo() external view returns (
         address watchedContract,
         bytes32 watchedEventSig,
         address callbackContract,
-        bytes4 callbackSelector
+        bytes4  callbackSelector
     ) {
         return (
             address(clob),

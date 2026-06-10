@@ -7,37 +7,52 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract AgentRegistry is Ownable, ReentrancyGuard {
 
-    // ─── Structs ───────────────────────────────────────────────────────────
+    // ─── Structs ───────────────────────────────────────────────────────────────
 
     struct Agent {
-        bool registered;
-        uint256 collateral;       // STT depositado como garantía
-        uint256 ordersExecuted;   // Total de órdenes completadas
-        uint256 totalVolume;      // Volumen total en USDC
-        uint256 feesEarned;       // Fees acumulados
-        uint256 slashCount;       // Veces penalizado por no revelar
-        uint256 registeredAt;
+        // Slot 0 — empaquetado [FIX H-1]
+        uint64  registeredAt;    // timestamp — uint64 aguanta hasta año 2554
+        uint64  slashCount;      // max 1.8×10^19 slashes
+        uint64  ordersExecuted;  // max 1.8×10^19 órdenes
+        bool    registered;      // 1 byte
+
+        // Slot 1
+        uint256 collateral;
+
+        // Slot 2
+        uint256 totalVolume;
+
+        // Slot 3
+        uint256 feesEarned;
     }
 
-    // ─── State ─────────────────────────────────────────────────────────────
+    // ─── State ─────────────────────────────────────────────────────────────────
 
-    mapping(address => Agent) public agents;
-    address[] public agentList;
+    mapping(address => Agent)   public agents;
+    mapping(address => uint256) public activeOrders; // [FIX H-2]
+    address[]                   public agentList;
 
-    uint256 public constant MIN_COLLATERAL = 0.01 ether; // 0.01 STT mínimo
-    uint256 public constant SLASH_AMOUNT   = 0.001 ether; // Penalización por no reveal
+    uint256 public constant MIN_COLLATERAL = 0.01 ether;
+    uint256 public constant SLASH_AMOUNT   = 0.001 ether;
 
-    address public clobContract;  // Solo el CLOB puede llamar ciertas funciones
+    address public clobContract;
 
-    // ─── Events ────────────────────────────────────────────────────────────
+    // ─── Events ────────────────────────────────────────────────────────────────
 
     event AgentRegistered(address indexed agent, uint256 collateral, uint256 timestamp);
     event CollateralDeposited(address indexed agent, uint256 amount);
     event CollateralWithdrawn(address indexed agent, uint256 amount);
-    event AgentSlashed(address indexed agent, uint256 amount, string reason);
+    event AgentDeregistered(address indexed agent);
+
+    event AgentSlashed(
+        address indexed agent,
+        uint256 amount,
+        string  reason
+    );
+
     event StatsUpdated(address indexed agent, uint256 ordersExecuted, uint256 feesEarned);
 
-    // ─── Modifiers ─────────────────────────────────────────────────────────
+    // ─── Modifiers ─────────────────────────────────────────────────────────────
 
     modifier onlyRegistered() {
         require(agents[msg.sender].registered, "Agent not registered");
@@ -49,64 +64,95 @@ contract AgentRegistry is Ownable, ReentrancyGuard {
         _;
     }
 
-    // ─── Constructor ───────────────────────────────────────────────────────
+    // ─── Constructor ───────────────────────────────────────────────────────────
 
     constructor() Ownable(msg.sender) {}
 
-    // ─── Setup ─────────────────────────────────────────────────────────────
+    // ─── Setup ─────────────────────────────────────────────────────────────────
 
     function setCLOBContract(address _clob) external onlyOwner {
         clobContract = _clob;
     }
 
-    // ─── Agent Management ──────────────────────────────────────────────────
+    // ─── Agent Management ──────────────────────────────────────────────────────
 
-    /// @notice Registrar un nuevo agente depositando colateral en STT
     function registerAgent() external payable {
         require(!agents[msg.sender].registered, "Already registered");
-        require(msg.value >= MIN_COLLATERAL, "Insufficient collateral");
+        require(msg.value >= MIN_COLLATERAL,     "Insufficient collateral");
 
         agents[msg.sender] = Agent({
+            registeredAt:   uint64(block.timestamp),
+            slashCount:     0,
+            ordersExecuted: 0,
             registered:     true,
             collateral:     msg.value,
-            ordersExecuted: 0,
             totalVolume:    0,
-            feesEarned:     0,
-            slashCount:     0,
-            registeredAt:   block.timestamp
+            feesEarned:     0
         });
 
         agentList.push(msg.sender);
-
         emit AgentRegistered(msg.sender, msg.value, block.timestamp);
     }
 
-    /// @notice Depositar más colateral
     function depositCollateral() external payable onlyRegistered {
         agents[msg.sender].collateral += msg.value;
         emit CollateralDeposited(msg.sender, msg.value);
     }
 
-    /// @notice Retirar colateral (solo si no tiene órdenes pendientes)
+    /// @notice Retirar colateral
+    /// [FIX V2] Permite retiro total (salida del sistema) o mantener MIN_COLLATERAL.
+    /// El bug anterior bloqueaba a agentes que depositaron exactamente MIN_COLLATERAL.
     function withdrawCollateral(uint256 amount) external nonReentrant onlyRegistered {
-        require(agents[msg.sender].collateral >= amount, "Insufficient collateral");
+        require(activeOrders[msg.sender] == 0,           "Has active orders pending");
+        require(agents[msg.sender].collateral >= amount,  "Insufficient collateral");
+
+        uint256 remaining = agents[msg.sender].collateral - amount;
+
+        // [FIX V2] permitir retiro total (remaining == 0) o mantener el mínimo
+        require(
+            remaining == 0 || remaining >= MIN_COLLATERAL,
+            "Leave 0 (full exit) or keep at least MIN_COLLATERAL"
+        );
+
+        // Si retira todo → desregistrar automáticamente
+        if (remaining == 0) {
+            agents[msg.sender].registered = false;
+            emit AgentDeregistered(msg.sender);
+        }
+
         agents[msg.sender].collateral -= amount;
         (bool ok,) = msg.sender.call{value: amount}("");
         require(ok, "Transfer failed");
         emit CollateralWithdrawn(msg.sender, amount);
     }
 
-    // ─── Called by CLOB ────────────────────────────────────────────────────
+    // ─── Called by CLOB — Active Orders Tracking [FIX H-2] ────────────────────
+
+    function incrementActiveOrders(address agent) external onlyCLOB {
+        unchecked { activeOrders[agent]++; }
+    }
+
+    function decrementActiveOrders(address agent) external onlyCLOB {
+        if (activeOrders[agent] > 0) {
+            unchecked { activeOrders[agent]--; }
+        }
+    }
+
+    // ─── Called by CLOB — Slash & Stats ────────────────────────────────────────
 
     /// @notice Penalizar agente por no revelar su orden a tiempo
+    /// IMPORTANTE: el CLOB llama decrementActiveOrders ANTES de llamar slashAgent
     function slashAgent(address agent, string calldata reason) external onlyCLOB {
         require(agents[agent].registered, "Agent not registered");
+
         uint256 slash = SLASH_AMOUNT;
         if (agents[agent].collateral < slash) {
             slash = agents[agent].collateral;
         }
-        agents[agent].collateral  -= slash;
-        agents[agent].slashCount  += 1;
+
+        agents[agent].collateral -= slash;
+        unchecked { agents[agent].slashCount += 1; }
+
         emit AgentSlashed(agent, slash, reason);
     }
 
@@ -116,13 +162,13 @@ contract AgentRegistry is Ownable, ReentrancyGuard {
         uint256 volume,
         uint256 fee
     ) external onlyCLOB {
-        agents[agent].ordersExecuted += 1;
-        agents[agent].totalVolume    += volume;
-        agents[agent].feesEarned     += fee;
+        unchecked { agents[agent].ordersExecuted += 1; }
+        agents[agent].totalVolume += volume;
+        agents[agent].feesEarned  += fee;
         emit StatsUpdated(agent, agents[agent].ordersExecuted, agents[agent].feesEarned);
     }
 
-    // ─── Views ─────────────────────────────────────────────────────────────
+    // ─── Views ─────────────────────────────────────────────────────────────────
 
     function getAgent(address agent) external view returns (Agent memory) {
         return agents[agent];

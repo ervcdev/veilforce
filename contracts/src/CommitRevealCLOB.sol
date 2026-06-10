@@ -8,76 +8,81 @@ import "./AgentRegistry.sol";
 
 contract CommitRevealCLOB is ReentrancyGuard, Ownable {
 
-    // ─── Enums ─────────────────────────────────────────────────────────────
+    // ─── Enums ─────────────────────────────────────────────────────────────────
 
-    enum Direction { BID, ASK }
+    enum Direction   { BID, ASK }
     enum OrderStatus { COMMITTED, REVEALED, MATCHED, EXPIRED }
 
-    // ─── Structs ───────────────────────────────────────────────────────────
+    // ─── Structs ───────────────────────────────────────────────────────────────
 
     struct Order {
-        address agent;
-        bytes32 commitment;     // keccak256(price, amount, direction, salt)
-        uint256 price;          // Precio en USDC (18 decimals)
-        uint256 amount;         // Cantidad de tokenA (18 decimals)
-        Direction direction;
+        address     agent;
+        bytes32     commitment;
+        uint256     price;
+        uint256     amount;
+        Direction   direction;
         OrderStatus status;
-        uint256 commitBlock;    // Bloque en que se hizo el commit
-        uint256 revealBlock;    // Bloque en que se hizo el reveal
+        uint256     commitBlock;
+        uint256     revealBlock;
     }
 
-    // ─── State ─────────────────────────────────────────────────────────────
+    // ─── State ─────────────────────────────────────────────────────────────────
 
     AgentRegistry public registry;
-    IERC20 public tokenA;       // Token que se compra/vende (ej. WETH mock)
-    IERC20 public tokenB;       // Token de pago (ej. USDC mock)
+    IERC20        public tokenA;
+    IERC20        public tokenB;
 
     mapping(uint256 => Order) public orders;
     uint256 public orderCount;
 
-    uint256 public constant REVEAL_WINDOW = 5;       // Bloques para revelar
-    uint256 public constant FEE_BPS       = 10;      // 0.10% fee
-    uint256 public constant BPS_DENOMINATOR = 10000;
+    uint256 public constant REVEAL_WINDOW       = 5;
+    uint256 public constant EXPIRE_GRACE_PERIOD = 1;   // [FIX C-3]
+    uint256 public constant FEE_BPS             = 10;  // 0.10%
+    uint256 public constant BPS_DENOMINATOR     = 10000;
 
-    // Orderbook simplificado: listas de IDs por dirección
     uint256[] public openBids;
     uint256[] public openAsks;
 
-    // ─── Events ────────────────────────────────────────────────────────────
+    address public protocolFeeRecipient; // [FIX C-1]
+    address public keeperAddress;        // [FIX C-3]
+    uint256 public lastMatchBlock;       // [FIX M-2]
+
+    // ─── Events ────────────────────────────────────────────────────────────────
 
     event OrderCommitted(
         uint256 indexed orderId,
         address indexed agent,
-        bytes32 commitment,
-        uint256 blockNumber
+        bytes32         commitment,
+        uint256         blockNumber
     );
 
     event OrderRevealed(
         uint256 indexed orderId,
         address indexed agent,
-        uint256 price,
-        uint256 amount,
-        Direction direction,
-        uint256 blockNumber
+        uint256         price,
+        uint256         amount,
+        Direction       direction,
+        uint256         blockNumber
     );
 
+    // [FIX M-1] reordenado
     event OrderMatched(
         uint256 indexed bidId,
         uint256 indexed askId,
-        address indexed bidAgent,
-        address askAgent,
-        uint256 price,
-        uint256 amount,
-        uint256 fee
+        uint256         price,
+        uint256         amount,
+        uint256         fee,
+        address         bidAgent,
+        address         askAgent
     );
 
     event OrderExpired(
         uint256 indexed orderId,
         address indexed agent,
-        uint256 blockNumber
+        uint256         blockNumber
     );
 
-    // ─── Constructor ───────────────────────────────────────────────────────
+    // ─── Constructor ───────────────────────────────────────────────────────────
 
     constructor(
         address _registry,
@@ -89,12 +94,23 @@ contract CommitRevealCLOB is ReentrancyGuard, Ownable {
         tokenB   = IERC20(_tokenB);
     }
 
-    // ─── Commit Phase ──────────────────────────────────────────────────────
+    // ─── Admin ─────────────────────────────────────────────────────────────────
 
-    /// @notice Fase 1: el agente publica solo el hash de su orden
-    /// @param commitment keccak256(abi.encodePacked(price, amount, direction, salt))
+    function setFeeRecipient(address recipient) external onlyOwner {
+        require(recipient != address(0), "Zero address");
+        protocolFeeRecipient = recipient;
+    }
+
+    function setKeeper(address _keeper) external onlyOwner {
+        keeperAddress = _keeper;
+    }
+
+    // ─── Commit Phase ──────────────────────────────────────────────────────────
+
     function commitOrder(bytes32 commitment) external returns (uint256 orderId) {
         require(registry.isRegistered(msg.sender), "Agent not registered");
+
+        registry.incrementActiveOrders(msg.sender); // [FIX H-2]
 
         orderId = ++orderCount;
 
@@ -112,38 +128,37 @@ contract CommitRevealCLOB is ReentrancyGuard, Ownable {
         emit OrderCommitted(orderId, msg.sender, commitment, block.number);
     }
 
-    // ─── Reveal Phase ──────────────────────────────────────────────────────
+    // ─── Reveal Phase ──────────────────────────────────────────────────────────
 
-    /// @notice Fase 2: el agente revela los parámetros reales de su orden
     function revealOrder(
-        uint256 orderId,
-        uint256 price,
-        uint256 amount,
+        uint256   orderId,
+        uint256   price,
+        uint256   amount,
         Direction direction,
-        bytes32 salt
+        bytes32   salt
     ) external nonReentrant {
         Order storage order = orders[orderId];
 
-        require(order.agent == msg.sender,                       "Not your order");
-        require(order.status == OrderStatus.COMMITTED,           "Wrong status");
-        require(block.number >= order.commitBlock + 1,           "Too early to reveal");
+        require(order.agent == msg.sender,                         "Not your order");
+        require(order.status == OrderStatus.COMMITTED,             "Wrong status");
+        require(block.number >= order.commitBlock + 1,             "Too early to reveal");
         require(block.number <= order.commitBlock + REVEAL_WINDOW, "Reveal window expired");
-        require(price > 0 && amount > 0,                         "Invalid params");
+        require(price > 0 && amount > 0,                           "Invalid params");
 
-        // Verificar que el hash coincide
         bytes32 expectedCommitment = keccak256(
             abi.encodePacked(price, amount, direction, salt)
         );
         require(order.commitment == expectedCommitment, "Commitment mismatch");
 
-        // Actualizar orden
         order.price       = price;
         order.amount      = amount;
         order.direction   = direction;
         order.status      = OrderStatus.REVEALED;
         order.revealBlock = block.number;
 
-        // Agregar al orderbook
+        // [FIX GAP-2] decrementar ANTES del emit
+        registry.decrementActiveOrders(msg.sender);
+
         if (direction == Direction.BID) {
             openBids.push(orderId);
         } else {
@@ -152,22 +167,21 @@ contract CommitRevealCLOB is ReentrancyGuard, Ownable {
 
         emit OrderRevealed(orderId, msg.sender, price, amount, direction, block.number);
 
-        // Intentar matching inmediatamente
         _tryMatch();
     }
 
-    // ─── Matching Engine ───────────────────────────────────────────────────
+    // ─── Matching Engine ───────────────────────────────────────────────────────
 
-    /// @notice Intenta hacer match entre el mejor bid y el mejor ask
-    /// Llamado por ReactivityAdapter via Somnia Reactivity también
+    // [FIX M-2] cooldown externo
     function matchOrders() external {
+        if (block.number == lastMatchBlock) return;
+        lastMatchBlock = block.number;
         _tryMatch();
     }
 
     function _tryMatch() internal {
         if (openBids.length == 0 || openAsks.length == 0) return;
 
-        // Encontrar mejor bid (precio más alto) y mejor ask (precio más bajo)
         (uint256 bestBidIdx, uint256 bestBidId) = _findBestBid();
         (uint256 bestAskIdx, uint256 bestAskId) = _findBestAsk();
 
@@ -176,102 +190,137 @@ contract CommitRevealCLOB is ReentrancyGuard, Ownable {
         Order storage bid = orders[bestBidId];
         Order storage ask = orders[bestAskId];
 
-        // Match solo si bid.price >= ask.price (spread cruzado)
         if (bid.price < ask.price) return;
 
-        // Precio de ejecución = promedio
         uint256 execPrice  = (bid.price + ask.price) / 2;
         uint256 execAmount = bid.amount < ask.amount ? bid.amount : ask.amount;
-        uint256 fee        = (execAmount * FEE_BPS) / BPS_DENOMINATOR;
 
-        // Ejecutar settlement
-        _settle(bid.agent, ask.agent, execPrice, execAmount, fee);
+        _settle(bid.agent, ask.agent, execPrice, execAmount);
 
-        // Actualizar estado de órdenes
+        // Calcular fees en sus unidades para el evento
+        uint256 totalCost   = (execPrice * execAmount) / 1e18;
+        uint256 feeInTokenB = (totalCost  * FEE_BPS) / BPS_DENOMINATOR;
+        uint256 feeInTokenA = (execAmount * FEE_BPS) / BPS_DENOMINATOR;
+
+        // [FIX V6] convertir feeInTokenA a tokenB para stats homogéneos
+        // feeInTokenA (WETH) × execPrice (USDC/WETH) / 1e18 = USDC equivalente
+        uint256 feeInTokenAasTokenB = (feeInTokenA * execPrice) / 1e18;
+
+        registry.updateStats(bid.agent, execAmount, feeInTokenAasTokenB / 2);
+        registry.updateStats(ask.agent, execAmount, feeInTokenB / 2);
+
         bid.status = OrderStatus.MATCHED;
         ask.status = OrderStatus.MATCHED;
 
-        // Actualizar stats en el registry
-        registry.updateStats(bid.agent, execAmount, fee / 2);
-        registry.updateStats(ask.agent, execAmount, fee / 2);
-
-        // Remover del orderbook
         _removeFromArray(openBids, bestBidIdx);
         _removeFromArray(openAsks, bestAskIdx);
 
         emit OrderMatched(
             bestBidId, bestAskId,
-            bid.agent, ask.agent,
-            execPrice, execAmount, fee
+            execPrice, execAmount,
+            feeInTokenA + feeInTokenB,
+            bid.agent, ask.agent
         );
     }
 
-    // ─── Settlement ────────────────────────────────────────────────────────
+    // ─── Settlement [FIX C-1 + GAP-4] ─────────────────────────────────────────
 
     function _settle(
         address bidAgent,
         address askAgent,
         uint256 price,
-        uint256 amount,
-        uint256 fee
+        uint256 execAmount
     ) internal {
-        // bidAgent compra tokenA pagando tokenB
-        // askAgent vende tokenA recibiendo tokenB
-        uint256 totalCost = (price * amount) / 1e18;
+        uint256 totalCost = (price * execAmount) / 1e18;
+        address feeTarget = protocolFeeRecipient != address(0)
+                            ? protocolFeeRecipient
+                            : owner();
 
-        // bidAgent envía tokenB al askAgent
+        // [FIX GAP-4] fee independiente en cada token
+        uint256 feeInTokenB = (totalCost  * FEE_BPS) / BPS_DENOMINATOR;
+        uint256 feeInTokenA = (execAmount * FEE_BPS) / BPS_DENOMINATOR;
+
         require(
-            tokenB.transferFrom(bidAgent, askAgent, totalCost - fee / 2),
+            tokenB.transferFrom(bidAgent, askAgent, totalCost - feeInTokenB),
             "TokenB transfer failed"
         );
+        if (feeInTokenB > 0) {
+            require(
+                tokenB.transferFrom(bidAgent, feeTarget, feeInTokenB),
+                "TokenB fee transfer failed"
+            );
+        }
 
-        // askAgent envía tokenA al bidAgent
         require(
-            tokenA.transferFrom(askAgent, bidAgent, amount - fee / 2),
+            tokenA.transferFrom(askAgent, bidAgent, execAmount - feeInTokenA),
             "TokenA transfer failed"
         );
+        if (feeInTokenA > 0) {
+            require(
+                tokenA.transferFrom(askAgent, feeTarget, feeInTokenA),
+                "TokenA fee transfer failed"
+            );
+        }
     }
 
-    // ─── Expire ────────────────────────────────────────────────────────────
+    // ─── Expire [FIX C-3 + GAP-2] ─────────────────────────────────────────────
 
-    /// @notice Expirar órdenes que no fueron reveladas a tiempo
-    /// Llamado por Cron Subscription de Somnia Reactivity
     function expireOrder(uint256 orderId) external {
         Order storage order = orders[orderId];
-        require(order.status == OrderStatus.COMMITTED,              "Not committed");
-        require(block.number > order.commitBlock + REVEAL_WINDOW,   "Window not closed");
+
+        require(order.status == OrderStatus.COMMITTED, "Not committed");
+        require(
+            block.number > order.commitBlock + REVEAL_WINDOW + EXPIRE_GRACE_PERIOD,
+            "Grace period still active"
+        );
 
         order.status = OrderStatus.EXPIRED;
 
-        // Slash al agente por no revelar
-        registry.slashAgent(order.agent, "Failed to reveal order in time");
+        // [FIX GAP-2] decrementar PRIMERO, slash DESPUÉS
+        registry.decrementActiveOrders(order.agent);
 
         emit OrderExpired(orderId, order.agent, block.number);
+
+        if (msg.sender == owner() || msg.sender == keeperAddress) {
+            registry.slashAgent(order.agent, "Failed to reveal in time");
+        }
     }
 
-    // ─── Helpers ───────────────────────────────────────────────────────────
+    // ─── Matching Helpers [FIX C-2] ────────────────────────────────────────────
 
-    function _findBestBid() internal view returns (uint256 idx, uint256 orderId) {
+    function _findBestBid() internal returns (uint256 idx, uint256 orderId) {
         uint256 bestPrice = 0;
-        for (uint256 i = 0; i < openBids.length; i++) {
+        uint256 i = 0;
+        while (i < openBids.length) {
             Order storage o = orders[openBids[i]];
-            if (o.status == OrderStatus.REVEALED && o.price > bestPrice) {
+            if (o.status != OrderStatus.REVEALED) {
+                _removeFromArray(openBids, i);
+                continue;
+            }
+            if (o.price > bestPrice) {
                 bestPrice = o.price;
                 idx       = i;
                 orderId   = openBids[i];
             }
+            unchecked { ++i; }
         }
     }
 
-    function _findBestAsk() internal view returns (uint256 idx, uint256 orderId) {
+    function _findBestAsk() internal returns (uint256 idx, uint256 orderId) {
         uint256 bestPrice = type(uint256).max;
-        for (uint256 i = 0; i < openAsks.length; i++) {
+        uint256 i = 0;
+        while (i < openAsks.length) {
             Order storage o = orders[openAsks[i]];
-            if (o.status == OrderStatus.REVEALED && o.price < bestPrice) {
+            if (o.status != OrderStatus.REVEALED) {
+                _removeFromArray(openAsks, i);
+                continue;
+            }
+            if (o.price < bestPrice) {
                 bestPrice = o.price;
                 idx       = i;
                 orderId   = openAsks[i];
             }
+            unchecked { ++i; }
         }
     }
 
@@ -280,7 +329,18 @@ contract CommitRevealCLOB is ReentrancyGuard, Ownable {
         arr.pop();
     }
 
-    // ─── Views ─────────────────────────────────────────────────────────────
+    // ─── Helper para agentes ───────────────────────────────────────────────────
+
+    function hashOrder(
+        uint256   price,
+        uint256   amount,
+        Direction direction,
+        bytes32   salt
+    ) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked(price, amount, direction, salt));
+    }
+
+    // ─── Views ─────────────────────────────────────────────────────────────────
 
     function getOrder(uint256 orderId) external view returns (Order memory) {
         return orders[orderId];
@@ -292,15 +352,5 @@ contract CommitRevealCLOB is ReentrancyGuard, Ownable {
 
     function getOpenAsks() external view returns (uint256[] memory) {
         return openAsks;
-    }
-
-    /// @notice Helper para que el agente genere su commitment offchain
-    function hashOrder(
-        uint256 price,
-        uint256 amount,
-        Direction direction,
-        bytes32 salt
-    ) external pure returns (bytes32) {
-        return keccak256(abi.encodePacked(price, amount, direction, salt));
     }
 }
