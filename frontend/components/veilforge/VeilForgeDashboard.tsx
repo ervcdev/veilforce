@@ -93,6 +93,8 @@ export default function VeilForgeDashboard() {
   const [blockFlash, setBlockFlash] = useState(false)
   const [tpsDirection, setTpsDirection] = useState<'up' | 'down'>('up')
   const prevTpsRef = useRef(247)
+  const [bannerDismissed, setBannerDismissed] = useState(false)
+  const contractsConfigured = !!process.env.NEXT_PUBLIC_CLOB_ADDRESS
   const [now, setNow] = useState(Date.now())
   const [agentStats, setAgentStats] = useState([
     { ...AGENTS[0], spread: 0.12, orders: 47, pnl: 1247.50, activity: 75, lastAction: 'BID 1.20 WETH @ 3002' },
@@ -408,7 +410,28 @@ export default function VeilForgeDashboard() {
         }
         .row-glow { animation: reveal-glow 400ms ease-out forwards; }
       `}</style>
-      
+
+      {!contractsConfigured && !bannerDismissed && (
+        <div
+          className="flex items-center justify-between gap-3 px-4 py-2 font-mono-jetbrains text-xs"
+          style={{ background: '#2a1f00', borderBottom: '1px solid #7a5200', color: '#ffcc44' }}
+          role="alert"
+        >
+          <span>
+            <span style={{ marginRight: '0.4em' }}>&#9888;</span>
+            Contract addresses not configured — showing demo data
+          </span>
+          <button
+            onClick={() => setBannerDismissed(true)}
+            aria-label="Dismiss warning"
+            className="shrink-0 text-base leading-none"
+            style={{ color: '#ffcc44', opacity: 0.7, background: 'none', border: 'none', cursor: 'pointer' }}
+          >
+            &#x2715;
+          </button>
+        </div>
+      )}
+
       <div className="h-screen w-full flex flex-col overflow-hidden" style={{ background: '#0a0a0f', minWidth: '1280px' }}>
         {/* TOP BAR */}
         <div className="h-12 flex items-center justify-between px-4" style={{ background: '#080810', borderBottom: '1px solid #1a1a2e' }}>

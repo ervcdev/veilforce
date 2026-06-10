@@ -11,12 +11,12 @@ export const publicClient = createPublicClient({
   ),
 })
 
-// Contract addresses from environment
+// Contract addresses from environment — undefined when not configured
 export const ADDRESSES = {
-  clob: process.env.NEXT_PUBLIC_CLOB_ADDRESS as `0x${string}`,
-  registry: process.env.NEXT_PUBLIC_REGISTRY_ADDRESS as `0x${string}`,
-  tokenA: process.env.NEXT_PUBLIC_TOKEN_A_ADDRESS as `0x${string}`,
-  tokenB: process.env.NEXT_PUBLIC_TOKEN_B_ADDRESS as `0x${string}`,
+  clob:     process.env.NEXT_PUBLIC_CLOB_ADDRESS      as `0x${string}` | undefined,
+  registry: process.env.NEXT_PUBLIC_REGISTRY_ADDRESS  as `0x${string}` | undefined,
+  tokenA:   process.env.NEXT_PUBLIC_TOKEN_A_ADDRESS   as `0x${string}` | undefined,
+  tokenB:   process.env.NEXT_PUBLIC_TOKEN_B_ADDRESS   as `0x${string}` | undefined,
 }
 
 // Types matching the contract events
