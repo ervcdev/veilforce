@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Shield } from 'lucide-react'
 import { createPublicClient, webSocket } from 'viem'
 import { somniaTestnet } from '@/lib/chain'
+import Link from 'next/link'
 
 // Types
 interface CommitRow {
@@ -459,6 +460,21 @@ export default function VeilForgeDashboard() {
             </div>
             <span style={{ color: '#1a1a2e' }}>|</span>
             <span className="text-xs" style={{ color: '#00d4ff' }}>3 AGENTS ACTIVE</span>
+            <Link
+              href="/audit"
+              className="font-mono-jetbrains text-xs px-2 py-1 rounded border transition-colors"
+              style={{ background: '#0d0d14', borderColor: '#1a1a2e', color: '#666680' }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLAnchorElement).style.color = '#00d4ff'
+                ;(e.currentTarget as HTMLAnchorElement).style.borderColor = '#00d4ff'
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLAnchorElement).style.color = '#666680'
+                ;(e.currentTarget as HTMLAnchorElement).style.borderColor = '#1a1a2e'
+              }}
+            >
+              AUDIT
+            </Link>
           </div>
         </div>
         
