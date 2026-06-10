@@ -82,6 +82,7 @@ export default function VeilForgeDashboard() {
   const [wsConnected, setWsConnected] = useState(false)
   const wsUnwatchRef = useRef<(() => void) | null>(null)
   const matchedIdsRef = useRef<Set<string>>(new Set())
+  const revealCycleRef = useRef(0)
   const [glowingAgent, setGlowingAgent] = useState<string | null>(null)
   const [bestRate, setBestRate] = useState<BestRate>({
     agentAddress: AGENTS[0].address,
@@ -259,8 +260,9 @@ export default function VeilForgeDashboard() {
       
       // Schedule reveal after 2500ms
       setTimeout(() => {
-        // Roughly 50/50 BID/ASK
-        const direction: 'BID' | 'ASK' = Math.random() < 0.5 ? 'BID' : 'ASK'
+        // Strict 50/50 alternation: odd cycles = BID, even cycles = ASK
+        const direction: 'BID' | 'ASK' = revealCycleRef.current % 2 === 1 ? 'BID' : 'ASK'
+        revealCycleRef.current += 1
         // BIDs cluster slightly higher, ASKs slightly lower so they cross often
         const price = direction === 'BID'
           ? randomInRange(2998, 3008)
