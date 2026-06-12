@@ -36,6 +36,27 @@ export const CLOB_ABI = [
     stateMutability: 'view'
   },
   {
+    name: 'registry',
+    type: 'function',
+    inputs: [],
+    outputs: [{ type: 'address' }],
+    stateMutability: 'view'
+  },
+  {
+    name: 'keeperAddress',
+    type: 'function',
+    inputs: [],
+    outputs: [{ type: 'address' }],
+    stateMutability: 'view'
+  },
+  {
+    name: 'REVEAL_WINDOW',
+    type: 'function',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+    stateMutability: 'view'
+  },
+  {
     name: 'getOrder',
     type: 'function',
     inputs: [{ name: 'orderId', type: 'uint256' }],
@@ -179,6 +200,13 @@ export const REGISTRY_ABI = [
     type: 'function',
     inputs: [{ name: 'agent', type: 'address' }],
     outputs: [{ type: 'uint256' }],
+    stateMutability: 'view'
+  },
+  {
+    name: 'clobContract',
+    type: 'function',
+    inputs: [],
+    outputs: [{ type: 'address' }],
     stateMutability: 'view'
   }
 ] as const

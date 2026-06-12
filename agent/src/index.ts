@@ -1,3 +1,4 @@
+import path from 'path'
 import * as dotenv from 'dotenv'
 import {
   createAgentClients,
@@ -11,19 +12,21 @@ import { getNextOrderParams }     from './strategies/marketMaker'
 import { getArbitrageParams }     from './strategies/arbitrage'
 import { getConservativeParams }  from './strategies/conservative'
 
-dotenv.config()
+dotenv.config({ path: path.resolve(__dirname, '../.env') })
+// ─── Config Corregida (Autodetección de Wallet según Estrategia) ────────────────
 
-// ─── Config ───────────────────────────────────────────────────────────────────
+const STRATEGY = process.env.AGENT_STRATEGY || 'marketMaker'
 
-const STRATEGY    = process.env.AGENT_STRATEGY || 'marketMaker'
-const AGENT_INDEX = parseInt(process.env.AGENT_INDEX || '1')
+// Mapea automáticamente cada estrategia a su llave correspondiente
+let AGENT_INDEX = 1
+if (STRATEGY === 'arbitrage') AGENT_INDEX = 2
+if (STRATEGY === 'conservative') AGENT_INDEX = 3
 
 const PRIVATE_KEYS: Record<number, `0x${string}`> = {
   1: process.env.AGENT_1_PRIVATE_KEY as `0x${string}`,
   2: process.env.AGENT_2_PRIVATE_KEY as `0x${string}`,
   3: process.env.AGENT_3_PRIVATE_KEY as `0x${string}`
 }
-
 // ─── Loop principal ───────────────────────────────────────────────────────────
 
 async function runAgent() {

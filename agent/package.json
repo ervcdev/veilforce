@@ -5,15 +5,16 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "ts-node src/index.ts",
-    "agent1": "AGENT_STRATEGY=marketMaker ts-node src/index.ts",
-    "agent2": "AGENT_STRATEGY=arbitrage ts-node src/index.ts",
-    "agent3": "AGENT_STRATEGY=conservative ts-node src/index.ts"
+    "dev": "node -r ts-node/register src/index.ts",
+    "agent1": "AGENT_STRATEGY=marketMaker node -r ts-node/register src/index.ts",
+    "agent2": "AGENT_STRATEGY=arbitrage node -r ts-node/register src/index.ts",
+    "agent3": "AGENT_STRATEGY=conservative node -r ts-node/register src/index.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@veilforge/abis": "*",
     "dotenv": "^17.4.2",
     "ethers": "^6.16.0",
     "viem": "^2.51.3"
