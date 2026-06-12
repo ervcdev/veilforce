@@ -102,7 +102,7 @@ contract AgentRegistry is Ownable, ReentrancyGuard {
     /// @notice Retirar colateral
     /// [FIX V2] Permite retiro total (salida del sistema) o mantener MIN_COLLATERAL.
     /// El bug anterior bloqueaba a agentes que depositaron exactamente MIN_COLLATERAL.
-    function withdrawCollateral(uint256 amount) external nonReentrant onlyRegistered {
+    function withdrawCollateral(uint256 amount) external  onlyRegistered {
         require(activeOrders[msg.sender] == 0,           "Has active orders pending");
         require(agents[msg.sender].collateral >= amount,  "Insufficient collateral");
 

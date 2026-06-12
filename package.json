@@ -1,0 +1,9 @@
+{
+  "name": "veilforge",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "agent",
+    "frontend"
+  ]
+}

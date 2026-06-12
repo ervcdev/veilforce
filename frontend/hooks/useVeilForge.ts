@@ -99,20 +99,35 @@ export function useVeilForge() {
     [addTicker]
   )
 
-  // Block number polling
+  // Block number polling — marks connected when chain responds
   useEffect(() => {
-    const interval = setInterval(async () => {
+    if (!process.env.NEXT_PUBLIC_CLOB_ADDRESS) {
+      setIsConnected(false)
+      return
+    }
+
+    let cancelled = false
+
+    const poll = async () => {
       const block = await getCurrentBlock()
+      if (cancelled) return
       if (block > 0) {
         setMetrics((prev) => ({ ...prev, blockNumber: block }))
         setIsConnected(true)
       }
-    }, 1000)
-    return () => clearInterval(interval)
+    }
+
+    poll()
+    const interval = setInterval(poll, 1000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
   }, [])
 
-  // WebSocket subscriptions
+  // WebSocket event subscriptions
   useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_CLOB_ADDRESS) return () => {}
     const unwatchCommits = watchCommits(handleCommit)
     const unwatchReveals = watchReveals(handleReveal)
     const unwatchMatches = watchMatches(handleMatch)

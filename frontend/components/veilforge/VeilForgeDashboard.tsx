@@ -1,10 +1,9 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Shield } from 'lucide-react'
-import { createPublicClient, webSocket } from 'viem'
-import { somniaTestnet } from '@/lib/chain'
 import Link from 'next/link'
+import { useVeilForge } from '@/hooks/useVeilForge'
 
 // Types
 interface CommitRow {
@@ -66,10 +65,18 @@ const randomHex = (len: number) => Array.from({ length: len }, () => Math.floor(
 const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min
 
 export default function VeilForgeDashboard() {
-  // State
-  const [commits, setCommits] = useState<CommitRow[]>([])
-  const [reveals, setReveals] = useState<RevealRow[]>([])
-  const [ticker, setTicker] = useState<TickerEvent[]>([])
+  const {
+    commits: liveCommits,
+    reveals: liveReveals,
+    ticker: liveTicker,
+    metrics: liveMetrics,
+    isConnected,
+  } = useVeilForge()
+
+  // Mock state (fallback when isConnected is false)
+  const [mockCommits, setMockCommits] = useState<CommitRow[]>([])
+  const [mockReveals, setMockReveals] = useState<RevealRow[]>([])
+  const [mockTicker, setMockTicker] = useState<TickerEvent[]>([])
   const [metrics, setMetrics] = useState<Metrics>({
     tps: 247,
     matches: 1842,
@@ -77,10 +84,8 @@ export default function VeilForgeDashboard() {
     activeOrders: 342,
     avgReveal: 1.24,
   })
-  const [blockNumber, setBlockNumber] = useState(19847523)
+  const [mockBlockNumber, setMockBlockNumber] = useState(19847523)
   const blockNumberRef = useRef(19847523)
-  const [wsConnected, setWsConnected] = useState(false)
-  const wsUnwatchRef = useRef<(() => void) | null>(null)
   const matchedIdsRef = useRef<Set<string>>(new Set())
   const revealCycleRef = useRef(0)
   const [glowingAgent, setGlowingAgent] = useState<string | null>(null)
@@ -96,96 +101,118 @@ export default function VeilForgeDashboard() {
   const [tpsDirection, setTpsDirection] = useState<'up' | 'down'>('up')
   const prevTpsRef = useRef(247)
   const [bannerDismissed, setBannerDismissed] = useState(false)
+  const [connectionTimedOut, setConnectionTimedOut] = useState(false)
   const contractsConfigured = !!process.env.NEXT_PUBLIC_CLOB_ADDRESS
+  const statusMode: 'live' | 'demo' = isConnected ? 'live' : 'demo'
   const [now, setNow] = useState(Date.now())
+
+  useEffect(() => {
+    if (isConnected) {
+      setConnectionTimedOut(false)
+      return
+    }
+    if (!contractsConfigured) return
+    const timer = setTimeout(() => setConnectionTimedOut(true), 10_000)
+    return () => clearTimeout(timer)
+  }, [isConnected, contractsConfigured])
+
+  const showBanner =
+    (!contractsConfigured || connectionTimedOut) && !bannerDismissed
+
+  const displayBlockNumber =
+    isConnected && liveMetrics.blockNumber > 0
+      ? liveMetrics.blockNumber
+      : mockBlockNumber
+
+  const displayCommits = useMemo<CommitRow[]>(() => {
+    if (!isConnected) return mockCommits
+    return liveCommits.map((c, i) => ({
+      id: c.id,
+      agent: c.agent,
+      agentShort: c.agentShort,
+      hash: c.hash,
+      hashShort: c.hash,
+      block: c.block,
+      timestamp: c.timestamp,
+      isNew: i === 0,
+    }))
+  }, [isConnected, mockCommits, liveCommits])
+
+  const displayReveals = useMemo<RevealRow[]>(() => {
+    if (!isConnected) return mockReveals
+    return liveReveals.map((r, i) => ({
+      id: r.id,
+      agent: r.agent,
+      agentShort: r.agentShort,
+      direction: r.direction,
+      price: parseFloat(r.price),
+      amount: parseFloat(r.amount),
+      timestamp: r.timestamp,
+      isNew: i === 0,
+    }))
+  }, [isConnected, mockReveals, liveReveals])
+
+  const displayTicker = isConnected ? liveTicker : mockTicker
+
+  const displayMetrics = useMemo<Metrics>(() => {
+    if (!isConnected) return metrics
+    return {
+      ...metrics,
+      matches: liveMetrics.totalMatches,
+      volume: liveMetrics.totalVolume,
+      activeOrders: liveMetrics.activeOrders,
+    }
+  }, [isConnected, metrics, liveMetrics])
   const [agentStats, setAgentStats] = useState([
     { ...AGENTS[0], spread: 0.12, orders: 47, pnl: 1247.50, activity: 75, lastAction: 'BID 1.20 WETH @ 3002' },
     { ...AGENTS[1], spread: 0.08, orders: 31, pnl: 892.30, activity: 45, lastAction: 'ASK 0.85 WETH @ 2998' },
     { ...AGENTS[2], spread: 0.18, orders: 18, pnl: 234.80, activity: 25, lastAction: 'BID 0.40 WETH @ 2995' },
   ])
 
-  // Real-time block number via Somnia Testnet WebSocket, with simulated fallback
+  // Live block flash when connected to chain
   useEffect(() => {
-    let fallbackInterval: ReturnType<typeof setInterval> | null = null
-    let didReceiveBlock = false
+    if (isConnected && liveMetrics.blockNumber > 0) {
+      blockNumberRef.current = liveMetrics.blockNumber
+      setBlockFlash(true)
+      const t = setTimeout(() => setBlockFlash(false), 300)
+      setNow(Date.now())
+      return () => clearTimeout(t)
+    }
+  }, [isConnected, liveMetrics.blockNumber])
 
-    const applyBlock = (n: bigint | number) => {
-      const num = typeof n === 'bigint' ? Number(n) : n
-      setBlockNumber(num)
-      blockNumberRef.current = num
+  // Demo mode: simulated block counter
+  useEffect(() => {
+    if (isConnected) return
+    const interval = setInterval(() => {
+      setMockBlockNumber(prev => {
+        const next = prev + 1
+        blockNumberRef.current = next
+        return next
+      })
       setBlockFlash(true)
       setTimeout(() => setBlockFlash(false), 300)
       setNow(Date.now())
-    }
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [isConnected])
 
-    const startFallback = () => {
-      if (fallbackInterval) return
-      fallbackInterval = setInterval(() => {
-        setBlockNumber(prev => {
-          const next = prev + 1
-          blockNumberRef.current = next
-          return next
-        })
-        setBlockFlash(true)
-        setTimeout(() => setBlockFlash(false), 300)
-        setNow(Date.now())
-      }, 1000)
-    }
-
-    // Timeout: if no block arrives within 5s, start the fallback counter
-    const fallbackTimeout = setTimeout(() => {
-      if (!didReceiveBlock) {
-        setWsConnected(false)
-        startFallback()
-      }
-    }, 5000)
-
-    try {
-      const client = createPublicClient({
-        chain: somniaTestnet,
-        transport: webSocket('wss://api.infra.testnet.somnia.network/ws', {
-          reconnect: { attempts: 3, delay: 1000 },
-        }),
-      })
-
-      const unwatch = client.watchBlockNumber({
-        onBlockNumber: (blockNum) => {
-          if (!didReceiveBlock) {
-            didReceiveBlock = true
-            clearTimeout(fallbackTimeout)
-            setWsConnected(true)
-          }
-          applyBlock(blockNum)
-        },
-        onError: () => {
-          setWsConnected(false)
-          startFallback()
-        },
-      })
-
-      wsUnwatchRef.current = unwatch
-    } catch {
-      setWsConnected(false)
-      startFallback()
-    }
-
-    return () => {
-      clearTimeout(fallbackTimeout)
-      if (fallbackInterval) clearInterval(fallbackInterval)
-      if (wsUnwatchRef.current) {
-        wsUnwatchRef.current()
-        wsUnwatchRef.current = null
-      }
-    }
-  }, [])
+  // Live metrics: refresh TPS on new blocks
+  useEffect(() => {
+    if (!isConnected) return
+    setMetrics(prev => ({
+      ...prev,
+      tps: Math.floor(randomInRange(340, 420)),
+    }))
+  }, [isConnected, liveMetrics.blockNumber])
 
   // Track TPS direction since last change
   useEffect(() => {
-    if (metrics.tps !== prevTpsRef.current) {
-      setTpsDirection(metrics.tps >= prevTpsRef.current ? 'up' : 'down')
-      prevTpsRef.current = metrics.tps
+    const tps = displayMetrics.tps
+    if (tps !== prevTpsRef.current) {
+      setTpsDirection(tps >= prevTpsRef.current ? 'up' : 'down')
+      prevTpsRef.current = tps
     }
-  }, [metrics.tps])
+  }, [displayMetrics.tps])
 
   // Best rate update
   useEffect(() => {
@@ -208,8 +235,10 @@ export default function VeilForgeDashboard() {
     setTimeout(() => setFlashingMetric(null), 200)
   }, [])
 
-  // Main simulation cycle
+  // Main simulation cycle — only when not connected to live contract
   useEffect(() => {
+    if (isConnected) return
+
     const interval = setInterval(() => {
       // Pick random agent
       const agent = AGENTS[Math.floor(Math.random() * AGENTS.length)]
@@ -227,13 +256,13 @@ export default function VeilForgeDashboard() {
         isNew: true,
       }
       
-      setCommits(prev => {
+      setMockCommits(prev => {
         const updated = [newCommit, ...prev.map(c => ({ ...c, isNew: false }))]
         return updated.slice(0, 5)
       })
       
       // Add ticker event
-      setTicker(prev => {
+      setMockTicker(prev => {
         const event: TickerEvent = {
           id: generateId(),
           type: 'commit',
@@ -282,16 +311,16 @@ export default function VeilForgeDashboard() {
         }
 
         // This commit has now transitioned into a reveal — remove it from COMMITS
-        setCommits(prev => prev.filter(c => c.id !== newCommit.id))
+        setMockCommits(prev => prev.filter(c => c.id !== newCommit.id))
 
         // Clear the cyan glow highlight after 400ms
         const revealId = newReveal.id
         setTimeout(() => {
-          setReveals(prev => prev.map(r => r.id === revealId ? { ...r, glow: false } : r))
+          setMockReveals(prev => prev.map(r => r.id === revealId ? { ...r, glow: false } : r))
         }, 400)
 
         // Add reveal ticker event
-        setTicker(prev => {
+        setMockTicker(prev => {
           const event: TickerEvent = {
             id: generateId(),
             type: 'reveal',
@@ -313,7 +342,7 @@ export default function VeilForgeDashboard() {
         })
 
         // Insert reveal, then look for a crossing counterparty already on the book
-        setReveals(prev => {
+        setMockReveals(prev => {
           const withNew = [newReveal, ...prev.map(r => ({ ...r, isNew: false }))]
 
           // Find an opposing order that crosses: BID price >= ASK price
@@ -337,7 +366,7 @@ export default function VeilForgeDashboard() {
             matchedIdsRef.current.add(counterparty.id)
 
             // Emit MATCH ticker event
-            setTicker(t => {
+            setMockTicker(t => {
               const event: TickerEvent = {
                 id: generateId(),
                 type: 'match',
@@ -370,7 +399,7 @@ export default function VeilForgeDashboard() {
             )
 
             setTimeout(() => {
-              setReveals(curr => curr.filter(r => r.id !== newReveal.id && r.id !== counterparty.id))
+              setMockReveals(curr => curr.filter(r => r.id !== newReveal.id && r.id !== counterparty.id))
               matchedIdsRef.current.delete(newReveal.id)
               matchedIdsRef.current.delete(counterparty.id)
             }, 600)
@@ -384,7 +413,7 @@ export default function VeilForgeDashboard() {
     }, 1500)
     
     return () => clearInterval(interval)
-  }, [flashMetric])
+  }, [flashMetric, isConnected])
 
   return (
     <>
@@ -414,7 +443,7 @@ export default function VeilForgeDashboard() {
         .row-glow { animation: reveal-glow 400ms ease-out forwards; }
       `}</style>
 
-      {!contractsConfigured && !bannerDismissed && (
+      {showBanner && (
         <div
           className="flex items-center justify-between gap-3 px-4 py-2 font-mono-jetbrains text-xs"
           style={{ background: '#2a1f00', borderBottom: '1px solid #7a5200', color: '#ffcc44' }}
@@ -422,7 +451,9 @@ export default function VeilForgeDashboard() {
         >
           <span>
             <span style={{ marginRight: '0.4em' }}>&#9888;</span>
-            Contract addresses not configured — showing demo data
+            {!contractsConfigured
+              ? 'Contract addresses not configured — showing demo data'
+              : 'Unable to connect to Somnia Testnet — showing demo data'}
           </span>
           <button
             onClick={() => setBannerDismissed(true)}
@@ -440,24 +471,43 @@ export default function VeilForgeDashboard() {
         <div className="h-12 flex items-center justify-between px-4" style={{ background: '#080810', borderBottom: '1px solid #1a1a2e' }}>
           <div className="font-mono-jetbrains font-bold text-xl" style={{ color: '#00d4ff' }}>VEILFORGE</div>
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-sm" style={{ color: '#666680' }}>SOMNIA TESTNET</span>
+            <div
+              className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-yellow-400 animate-pulse'}`}
+            />
+            <span className="text-sm" style={{ color: '#666680' }}>
+              {isConnected ? 'SOMNIA TESTNET' : 'DEMO MODE'}
+            </span>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5">
               <span
+                className={`w-1.5 h-1.5 rounded-full ${statusMode === 'live' ? 'animate-pulse' : ''}`}
+                style={{
+                  background: statusMode === 'live' ? '#00ff88' : '#ffcc44',
+                }}
+              />
+              <span
+                className="font-mono-jetbrains text-xs uppercase"
+                style={{
+                  color: statusMode === 'live' ? '#00ff88' : '#ffcc44',
+                }}
+              >
+                {statusMode === 'live' ? 'LIVE' : 'DEMO'}
+              </span>
+            </div>
+            <span style={{ color: '#1a1a2e' }}>|</span>
+            <div className="flex items-center gap-1.5">
+              <span
                 className="w-1.5 h-1.5 rounded-full"
-                style={{ background: wsConnected ? '#00ff88' : '#666680' }}
+                style={{ background: isConnected ? '#00ff88' : '#666680' }}
               />
               <span
                 className="font-mono-jetbrains text-xs transition-colors duration-200"
                 style={{ color: blockFlash ? '#00d4ff' : 'white' }}
               >
-                {wsConnected
-                  ? `BLOCK #${blockNumber.toLocaleString()}`
-                  : blockNumber === 19847523
-                    ? 'Connecting...'
-                    : `BLOCK #${blockNumber.toLocaleString()}`}
+                {!isConnected && contractsConfigured && !connectionTimedOut
+                  ? 'Connecting...'
+                  : `BLOCK #${displayBlockNumber.toLocaleString()}`}
               </span>
             </div>
             <span style={{ color: '#1a1a2e' }}>|</span>
@@ -483,11 +533,11 @@ export default function VeilForgeDashboard() {
         {/* METRICS BAR */}
         <div className="flex gap-3 p-3" style={{ background: '#0a0a0f', minHeight: '72px' }}>
           {[
-            { key: 'tps', label: 'TPS', value: metrics.tps.toLocaleString() },
-            { key: 'matches', label: 'MATCHES', value: metrics.matches.toLocaleString() },
-            { key: 'volume', label: 'VOLUME (USDC)', prefix: '$', value: metrics.volume.toLocaleString(undefined, { maximumFractionDigits: 0 }) },
-            { key: 'activeOrders', label: 'ACTIVE ORDERS', value: metrics.activeOrders.toLocaleString() },
-            { key: 'avgReveal', label: 'AVG REVEAL', value: metrics.avgReveal.toFixed(2), suffix: 'ms' },
+            { key: 'tps', label: 'TPS', value: displayMetrics.tps.toLocaleString() },
+            { key: 'matches', label: 'MATCHES', value: displayMetrics.matches.toLocaleString() },
+            { key: 'volume', label: 'VOLUME (USDC)', prefix: '$', value: displayMetrics.volume.toLocaleString(undefined, { maximumFractionDigits: 0 }) },
+            { key: 'activeOrders', label: 'ACTIVE ORDERS', value: displayMetrics.activeOrders.toLocaleString() },
+            { key: 'avgReveal', label: 'AVG REVEAL', value: displayMetrics.avgReveal.toFixed(2), suffix: 'ms' },
           ].map(metric => (
             <div 
               key={metric.key} 
@@ -527,7 +577,7 @@ export default function VeilForgeDashboard() {
             <div className="flex-1 flex flex-col overflow-hidden rounded" style={{ background: '#0d0d14', border: '1px solid #1a1a2e' }}>
               <div className="flex items-center justify-between p-3 border-b" style={{ borderColor: '#1a1a2e' }}>
                 <span className="text-xs uppercase tracking-widest" style={{ color: '#666680' }}>COMMITS</span>
-                <span className="text-xs px-2 py-0.5 rounded" style={{ background: '#1a1a2e', color: '#00d4ff' }}>{commits.length}</span>
+                <span className="text-xs px-2 py-0.5 rounded" style={{ background: '#1a1a2e', color: '#00d4ff' }}>{displayCommits.length}</span>
               </div>
               <div className="flex-1 overflow-hidden">
                 <table className="w-full text-xs">
@@ -540,7 +590,7 @@ export default function VeilForgeDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {commits.map(commit => {
+                    {displayCommits.map(commit => {
                       const age = (now - commit.timestamp) / 1000
                       const faded = age > 3
                       return (
@@ -582,9 +632,9 @@ export default function VeilForgeDashboard() {
               <div className="flex items-center justify-between p-3 border-b" style={{ borderColor: '#1a1a2e' }}>
                 <span className="text-xs uppercase tracking-widest" style={{ color: '#666680' }}>REVEALS</span>
                 <span className="text-xs px-2 py-0.5 rounded font-mono-jetbrains" style={{ background: '#1a1a2e' }}>
-                  <span style={{ color: '#00ff88' }}>{reveals.filter(r => r.direction === 'BID').length} BID</span>
+                  <span style={{ color: '#00ff88' }}>{displayReveals.filter(r => r.direction === 'BID').length} BID</span>
                   <span style={{ color: '#666680' }}> / </span>
-                  <span style={{ color: '#ff4466' }}>{reveals.filter(r => r.direction === 'ASK').length} ASK</span>
+                  <span style={{ color: '#ff4466' }}>{displayReveals.filter(r => r.direction === 'ASK').length} ASK</span>
                 </span>
               </div>
               <div className="flex-1 overflow-hidden">
@@ -599,7 +649,7 @@ export default function VeilForgeDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {reveals.map(reveal => (
+                    {displayReveals.map(reveal => (
                       <tr 
                         key={reveal.id}
                         className={`${reveal.isNew ? 'row-enter' : ''} ${reveal.matching ? 'row-matching' : ''} ${reveal.glow ? 'row-glow' : ''}`}
@@ -782,7 +832,7 @@ export default function VeilForgeDashboard() {
           </div>
           <div className="flex-1 overflow-hidden">
             <div className="animate-ticker flex gap-8 whitespace-nowrap">
-              {[...ticker, ...ticker].map((event, i) => (
+              {[...displayTicker, ...displayTicker].map((event, i) => (
                 event.type === 'match' ? (
                   <span
                     key={`${event.id}-${i}`}

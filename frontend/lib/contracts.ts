@@ -1,14 +1,18 @@
-import { createPublicClient, webSocket, formatUnits } from 'viem'
+import { createPublicClient, webSocket, http, fallback, formatUnits } from 'viem'
 import { somniaTestnet } from './chain'
 import { CLOB_ABI, REGISTRY_ABI } from './abis'
 
-// Public client with WebSocket for real-time events
+const wsUrl =
+  process.env.NEXT_PUBLIC_SOMNIA_WS_URL ||
+  'wss://api.infra.testnet.somnia.network/ws'
+const httpUrl =
+  process.env.NEXT_PUBLIC_SOMNIA_RPC_URL ||
+  'https://dream-rpc.somnia.network'
+
+// WebSocket first; HTTP fallback when WS is unavailable
 export const publicClient = createPublicClient({
   chain: somniaTestnet,
-  transport: webSocket(
-    process.env.NEXT_PUBLIC_SOMNIA_WS_URL ||
-      'wss://api.infra.testnet.somnia.network/ws'
-  ),
+  transport: fallback([webSocket(wsUrl), http(httpUrl)]),
 })
 
 // Contract addresses from environment — undefined when not configured

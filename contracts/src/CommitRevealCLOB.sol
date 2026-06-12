@@ -35,7 +35,7 @@ contract CommitRevealCLOB is ReentrancyGuard, Ownable {
     mapping(uint256 => Order) public orders;
     uint256 public orderCount;
 
-    uint256 public constant REVEAL_WINDOW       = 5;
+    uint256 public constant REVEAL_WINDOW       = 50;
     uint256 public constant EXPIRE_GRACE_PERIOD = 1;   // [FIX C-3]
     uint256 public constant FEE_BPS             = 10;  // 0.10%
     uint256 public constant BPS_DENOMINATOR     = 10000;

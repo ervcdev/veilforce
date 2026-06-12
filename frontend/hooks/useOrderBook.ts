@@ -91,7 +91,6 @@ export function useOrderBook() {
     if (!clobAddress) {
       setLoading(false)
       setIsLive(false)
-      setError('Contract address not configured')
       return
     }
 

@@ -16,19 +16,22 @@ contract Deploy is Script {
         address agent2 = vm.envAddress("AGENT_2_ADDRESS");
         address agent3 = vm.envAddress("AGENT_3_ADDRESS");
 
-        vm.startBroadcast(deployerKey);
-
-        // ── 1. Tokens mock — AMBOS con 18 decimals [FIX H-3] ──────────────────
+        // ── 1. Tokens mock — Despliegues individuales ──────────────────
+        vm.broadcast(deployerKey);
         MockERC20 tokenA = new MockERC20("Wrapped ETH Mock", "WETH", 18);
-        MockERC20 tokenB = new MockERC20("USD Coin Mock",    "USDC", 18);
         console.log("TokenA (WETH):", address(tokenA));
+
+        vm.broadcast(deployerKey);
+        MockERC20 tokenB = new MockERC20("USD Coin Mock",    "USDC", 18);
         console.log("TokenB (USDC):", address(tokenB));
 
         // ── 2. AgentRegistry ───────────────────────────────────────────────────
+        vm.broadcast(deployerKey);
         AgentRegistry registry = new AgentRegistry();
         console.log("AgentRegistry:", address(registry));
 
-        // ── 3. CommitRevealCLOB ────────────────────────────────────────────────
+        // ── 3. CommitRevealCLOB ────────────────────────────────================
+        vm.broadcast(deployerKey);
         CommitRevealCLOB clob = new CommitRevealCLOB(
             address(registry),
             address(tokenA),
@@ -37,16 +40,17 @@ contract Deploy is Script {
         console.log("CommitRevealCLOB:", address(clob));
 
         // ── 4. Conectar Registry → CLOB ────────────────────────────────────────
+        vm.broadcast(deployerKey);
         registry.setCLOBContract(address(clob));
         console.log("Registry connected to CLOB");
 
         // ── 5. Fee recipient [FIX C-1] ─────────────────────────────────────────
+        vm.broadcast(deployerKey);
         clob.setFeeRecipient(deployer);
         console.log("Fee recipient:", deployer);
 
         // ── 6. ReactivityAdapter [FIX M-3] ────────────────────────────────────
-        // 0x0100 = Reactivity Precompile de Somnia Testnet
-        // devMode = true por defecto — no requiere el precompile activo
+        vm.broadcast(deployerKey);
         ReactivityAdapter adapter = new ReactivityAdapter(
             address(clob),
             address(0x0100)
@@ -54,23 +58,28 @@ contract Deploy is Script {
         console.log("ReactivityAdapter:", address(adapter));
 
         // ── 7. Keeper [FIX C-3] ────────────────────────────────────────────────
+        vm.broadcast(deployerKey);
         clob.setKeeper(address(adapter));
         console.log("Keeper set to adapter");
 
-        // ── 8. Mintear tokens a agentes ────────────────────────────────────────
+        // ── 8. Mintear tokens a agentes — Transacciones individuales de control ─
         uint256 mintAmount = 10_000 * 1e18;
 
+        vm.broadcast(deployerKey);
         tokenA.mint(agent1, mintAmount);
+        vm.broadcast(deployerKey);
         tokenA.mint(agent2, mintAmount);
+        vm.broadcast(deployerKey);
         tokenA.mint(agent3, mintAmount);
 
+        vm.broadcast(deployerKey);
         tokenB.mint(agent1, mintAmount);
+        vm.broadcast(deployerKey);
         tokenB.mint(agent2, mintAmount);
+        vm.broadcast(deployerKey);
         tokenB.mint(agent3, mintAmount);
 
         console.log("Minted 10,000 WETH + 10,000 USDC to each agent");
-
-        vm.stopBroadcast();
 
         // ── Output para copiar al .env ─────────────────────────────────────────
         console.log("\n==============================");

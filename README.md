@@ -21,9 +21,11 @@
 > 33 security issues identified and resolved across 4 audit rounds.
 > Deployed on Somnia Testnet — June 2026.
 
-[Live Demo](https://veilforge.vercel.app) · [Demo Video](https://youtu.be/[VIDEO_ID]) · [Explorer](https://shannon-explorer.somnia.network/address/0x[CLOB_ADDRESS]) · [Audit Page](/audit)
+[Live Demo](https://veilforge.vercel.app) · [Demo Video](https://youtu.be/[VIDEO_ID]) · [Explorer](https://docs.google.com/presentation/d/e/2PACX-1vQcm3of1CCdKk1v6DjlOC4rg41hpG-K6TWfbnSXmsdl7lZYPWGG7Qv2FNXMTgfgl3Fvj5IItS4amfiA/pub?start=false&loop=false&delayms=3000) · [Audit Page](/audit)
 
 </div>
+
+
 
 ---
 
