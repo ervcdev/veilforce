@@ -212,7 +212,7 @@ contract CommitRevealTest is Test {
         uint256 orderId = clob.commitOrder(commitment);
 
         // Avanzar más allá del REVEAL_WINDOW (5 bloques)
-        vm.roll(block.number + 6);
+        vm.roll(block.number + 51);
 
         vm.prank(agent1);
         vm.expectRevert("Reveal window expired");
@@ -275,7 +275,7 @@ contract CommitRevealTest is Test {
         uint256 orderId = clob.commitOrder(commitment);
 
         // Avanzar más allá del reveal window + grace period
-        vm.roll(block.number + 7);
+        vm.roll(block.number + 52);
 
         vm.prank(deployer); // deployer es el keeper
         clob.expireOrder(orderId);
