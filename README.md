@@ -13,19 +13,17 @@
 
 [![Somnia Testnet](https://img.shields.io/badge/Somnia-Testnet%2050312-00d4ff?style=flat-square&logo=ethereum&logoColor=white)](https://shannon-explorer.somnia.network)
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.24-363636?style=flat-square&logo=solidity)](https://soliditylang.org)
-[![Tests](https://img.shields.io/badge/Tests-28%20Passing-00ff88?style=flat-square)](https://github.com/[your-username]/veilforge)
-[![Audit](https://img.shields.io/badge/Audit-33%20Issues%20Resolved-00d4ff?style=flat-square)](https://github.com/[your-username]/veilforge)
+[![Tests](https://img.shields.io/badge/Tests-28%20Passing-00ff88?style=flat-square)](https://github.com/YOUR_USERNAME/veilforge)
+[![Audit](https://img.shields.io/badge/Audit-33%20Issues%20Resolved-00d4ff?style=flat-square)](https://github.com/YOUR_USERNAME/veilforge)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 [![Encode Club](https://img.shields.io/badge/Encode%20Club-Somnia%20Agentathon%202026-purple?style=flat-square)](https://encodeclub.com)
 
-> 33 security issues identified and resolved across 4 audit rounds.
+> 33 security issues identified and resolved across 4 audit rounds.  
 > Deployed on Somnia Testnet — June 2026.
 
-[Live Demo](https://veilforge-frontend.vercel.app/) · [Demo Video](https://youtu.be/[VIDEO_ID]) · [Presentation](https://docs.google.com/presentation/d/e/2PACX-1vQcm3of1CCdKk1v6DjlOC4rg41hpG-K6TWfbnSXmsdl7lZYPWGG7Qv2FNXMTgfgl3Fvj5IItS4amfiA/pub?start=false&loop=false&delayms=3000) · [Audit Page](https://veilforge-frontend.vercel.app/audit)
+[Live Demo](https://veilforge.vercel.app) · [Demo Video](https://youtu.be/YOUR_VIDEO_ID) · [Explorer](https://shannon-explorer.somnia.network/address/0x05f27223bBe02B3CC5c2F5d61DA8902811f5d207) · [Audit Page](https://veilforge.vercel.app/audit)
 
 </div>
-
-
 
 ---
 
@@ -109,10 +107,11 @@ RESULT
 └───────────────────────────────┼──────────────────────────────────────┘
                                 │
 ┌───────────────────────────────┼──────────────────────────────────────┐
-│                    SOMNIA TESTNET                                    │
+│                    SOMNIA TESTNET (Chain ID 50312)                   │
 │                               ▼                                      │
 │  ┌───────────────────────────────────────────────────────────────┐  │
 │  │                   CommitRevealCLOB.sol                         │  │
+│  │  0x05f27223bBe02B3CC5c2F5d61DA8902811f5d207                   │  │
 │  │                                                               │  │
 │  │  commitOrder()  ──► hash stored onchain                       │  │
 │  │  revealOrder()  ──► hash verified + order added to book       │  │
@@ -124,14 +123,16 @@ RESULT
 │             ▼                            ▼                         │  │
 │  ┌──────────────────┐     ┌──────────────────────────────────┐   │  │
 │  │ ReactivityAdapter│     │        Somnia Agents              │   │  │
-│  │                  │     │  JSON API → live market price     │   │  │
-│  │ OrderRevealed    │     │  LLM     → pricing strategy       │   │  │
-│  │ → matchOrders()  │     └──────────────────────────────────┘   │  │
-│  │ (same block)     │                                             │  │
-│  └──────────────────┘     ┌──────────────────────────────────┐   │  │
-│                           │       Cron Subscriptions          │   │  │
-│  ┌──────────────────┐     │  auto-expire uncommitted orders   │   │  │
-│  │  AgentRegistry   │     └──────────────────────────────────┘   │  │
+│  │ 0x93f859...      │     │  JSON API → live market price     │   │  │
+│  │                  │     │  LLM     → pricing strategy       │   │  │
+│  │ OrderRevealed    │     └──────────────────────────────────┘   │  │
+│  │ → matchOrders()  │                                             │  │
+│  │ (same block)     │     ┌──────────────────────────────────┐   │  │
+│  └──────────────────┘     │       Cron Subscriptions          │   │  │
+│                           │  auto-expire uncommitted orders   │   │  │
+│  ┌──────────────────┐     └──────────────────────────────────┘   │  │
+│  │  AgentRegistry   │                                             │  │
+│  │  0x22b471...     │                                             │  │
 │  │  collateral      │                                             │  │
 │  │  slash / reward  │                                             │  │
 │  └──────────────────┘                                             │  │
@@ -143,7 +144,7 @@ RESULT
 │  ┌────────────────────────────────────────────────────────────────┐ │
 │  │  Real-time Dashboard                                           │ │
 │  │  commits → reveals → matches · live in milliseconds           │ │
-│  │  Agent heatmap · Swap widget · Transaction ticker              │ │
+│  │  Agent heatmap · Swap widget · Transaction ticker · /audit    │ │
 │  └────────────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────────┘
 ```
@@ -152,15 +153,15 @@ RESULT
 
 ## Deployed Contracts
 
-All contracts verified on Somnia Testnet (Shannon) — Chain ID 50312.
+All contracts deployed on Somnia Testnet (Shannon) — Chain ID 50312.
 
 | Contract | Address | Explorer |
 |---|---|---|
-| CommitRevealCLOB | `0x[CLOB_ADDRESS]` | [View ↗](https://shannon-explorer.somnia.network/address/0x[CLOB_ADDRESS]) |
-| AgentRegistry | `0x[REGISTRY_ADDRESS]` | [View ↗](https://shannon-explorer.somnia.network/address/0x[REGISTRY_ADDRESS]) |
-| ReactivityAdapter | `0x[ADAPTER_ADDRESS]` | [View ↗](https://shannon-explorer.somnia.network/address/0x[ADAPTER_ADDRESS]) |
-| MockWETH | `0x[TOKEN_A_ADDRESS]` | [View ↗](https://shannon-explorer.somnia.network/address/0x[TOKEN_A_ADDRESS]) |
-| MockUSDC | `0x[TOKEN_B_ADDRESS]` | [View ↗](https://shannon-explorer.somnia.network/address/0x[TOKEN_B_ADDRESS]) |
+| CommitRevealCLOB | `0x05f27223bBe02B3CC5c2F5d61DA8902811f5d207` | [View ↗](https://shannon-explorer.somnia.network/address/0x05f27223bBe02B3CC5c2F5d61DA8902811f5d207) |
+| AgentRegistry | `0x22b4710F8219949D98849dAdBecF077a1b0Edc75` | [View ↗](https://shannon-explorer.somnia.network/address/0x22b4710F8219949D98849dAdBecF077a1b0Edc75) |
+| ReactivityAdapter | `0x93f859b7c206ea38218c1De6BD8e5412114e93F5` | [View ↗](https://shannon-explorer.somnia.network/address/0x93f859b7c206ea38218c1De6BD8e5412114e93F5) |
+| MockWETH | `0x3De966884898384B32B7E1d45e54d94d058a811a` | [View ↗](https://shannon-explorer.somnia.network/address/0x3De966884898384B32B7E1d45e54d94d058a811a) |
+| MockUSDC | `0xC84F35D855aF44fD85B477A8924BF981df00EE20` | [View ↗](https://shannon-explorer.somnia.network/address/0xC84F35D855aF44fD85B477A8924BF981df00EE20) |
 
 ---
 
@@ -179,9 +180,9 @@ The contracts went through 4 rounds of audit before deployment.
 **Severity breakdown:**
 
 ```
-🔴 Critical  7  →  0 pending
-🟠 High     13  →  0 pending
-🟡 Medium   13  →  0 pending
+🔴 Critical   4  →  0 pending
+🟠 High       5  →  0 pending
+🟡 Medium     6  →  0 pending
 ```
 
 **Run the audit validation tests:**
@@ -220,7 +221,7 @@ Each agent runs the same cycle autonomously:
 1. Calculate order parameters based on strategy
 2. Generate random salt → compute commitment hash
 3. commitOrder(keccak256(price, amount, direction, salt))
-4. Wait N blocks (reveal window — ~5 seconds on Somnia)
+4. Wait N blocks (reveal window — ~50 blocks on Somnia Testnet)
 5. revealOrder(price, amount, direction, salt)
 6. Somnia Reactivity triggers matchOrders() automatically
 7. Repeat
@@ -236,12 +237,12 @@ See [AGENTS.md](AGENTS.md) for full strategy documentation.
 
 - [Foundry](https://getfoundry.sh) installed
 - Node.js 20+
-- STT tokens — [Somnia Faucet](https://testnet.somnia.network/)
+- STT tokens — [Somnia Faucet](https://testnet.somnia.network/) or [Google Faucet](https://cloud.google.com/application/web3/faucet/somnia/shannon)
 
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/[your-username]/veilforge
+git clone https://github.com/YOUR_USERNAME/veilforge
 cd veilforge
 npm install
 ```
@@ -259,12 +260,25 @@ forge test -vvv
 
 ```bash
 # contracts/.env
-cp contracts/.env.example contracts/.env
-# Fill: DEPLOYER_PRIVATE_KEY, AGENT_1/2/3_ADDRESS
+SOMNIA_RPC_URL=https://dream-rpc.somnia.network
+DEPLOYER_PRIVATE_KEY=0x...
+AGENT_1_ADDRESS=0x...
+AGENT_2_ADDRESS=0x...
+AGENT_3_ADDRESS=0x...
 
 # agent/.env
-cp agent/.env.example agent/.env
-# Fill: AGENT_1/2/3_PRIVATE_KEY + contract addresses after deploy
+SOMNIA_RPC_URL=https://dream-rpc.somnia.network
+SOMNIA_WS_URL=wss://api.infra.testnet.somnia.network/ws
+SOMNIA_CHAIN_ID=50312
+AGENT_1_PRIVATE_KEY=0x...
+AGENT_2_PRIVATE_KEY=0x...
+AGENT_3_PRIVATE_KEY=0x...
+COMMIT_REVEAL_CLOB_ADDRESS=0x05f27223bBe02B3CC5c2F5d61DA8902811f5d207
+AGENT_REGISTRY_ADDRESS=0x22b4710F8219949D98849dAdBecF077a1b0Edc75
+TOKEN_A_ADDRESS=0x3De966884898384B32B7E1d45e54d94d058a811a
+TOKEN_B_ADDRESS=0xC84F35D855aF44fD85B477A8924BF981df00EE20
+REVEAL_WINDOW_BLOCKS=50
+COLLATERAL_AMOUNT=0.01
 ```
 
 ### 4. Deploy to Somnia Testnet
@@ -279,8 +293,6 @@ forge script script/Deploy.s.sol:Deploy \
   --legacy \
   -vvv
 ```
-
-The script prints all deployed addresses. Copy them to `agent/.env` and `frontend/.env.local`.
 
 ---
 
@@ -305,8 +317,6 @@ cd agent && npm run agent3
 
 ```bash
 cd frontend
-cp .env.local.example .env.local
-# Fill contract addresses
 npm run dev
 # open http://localhost:3000
 ```
@@ -349,8 +359,7 @@ veilforge/
 ├── frontend/
 │   ├── app/
 │   │   ├── page.tsx                  # Main dashboard
-│   │   └── audit/
-│   │       └── page.tsx              # Audit history page
+│   │   └── audit/page.tsx            # Audit history page
 │   ├── components/
 │   │   └── VeilForgeDashboard.tsx    # Real-time orderbook dashboard
 │   ├── hooks/
@@ -363,7 +372,6 @@ veilforge/
 │       └── index.ts                  # Shared ABIs from forge build output
 │
 ├── AGENTS.md                         # Agent strategy documentation
-├── vercel.json                       # Monorepo deployment config
 └── package.json                      # npm workspaces root
 ```
 
@@ -386,8 +394,6 @@ veilforge/
 
 ## Somnia Primitives Integration
 
-VeilForge integrates Somnia's core primitives. Each one is structural to the system.
-
 | Primitive | Implementation | Status |
 |---|---|---|
 | **Reactivity** | `ReactivityAdapter.sol` subscribes to `OrderRevealed` | ✅ Deployed |
@@ -404,9 +410,9 @@ VeilForge integrates Somnia's core primitives. Each one is structural to the sys
 | Resource | URL |
 |---|---|
 | Live Demo | https://veilforge.vercel.app |
-| Demo Video | https://youtu.be/[VIDEO_ID] |
+| Demo Video | https://youtu.be/YOUR_VIDEO_ID |
 | Audit Page | https://veilforge.vercel.app/audit |
-| Somnia Explorer | https://shannon-explorer.somnia.network |
+| CLOB Explorer | https://shannon-explorer.somnia.network/address/0x05f27223bBe02B3CC5c2F5d61DA8902811f5d207 |
 | Agent Strategies | [AGENTS.md](AGENTS.md) |
 | Somnia Docs | https://docs.somnia.network |
 | Encode Club | https://encodeclub.com |
