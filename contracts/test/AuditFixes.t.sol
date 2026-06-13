@@ -143,7 +143,7 @@ contract AuditFixesTest is Test {
         clob.commitOrder(commitment);
 
         // Avanzar más allá del reveal window + grace period
-        vm.roll(block.number + 7);
+        vm.roll(block.number + 60);
 
         AgentRegistry.Agent memory agentBefore = registry.getAgent(agent1);
         uint64 slashCountBefore = agentBefore.slashCount;
@@ -348,7 +348,7 @@ contract AuditFixesTest is Test {
         clob.commitOrder(c2);
 
         // Avanzar — la segunda orden expira
-        vm.roll(block.number + 7);
+        vm.roll(block.number + 60);
         vm.prank(deployer);
         clob.expireOrder(2);
 

@@ -172,7 +172,7 @@ contract CommitRevealCLOB is ReentrancyGuard, Ownable {
 
     // ─── Matching Engine ───────────────────────────────────────────────────────
 
-    // [FIX M-2] cooldown externo
+    // [FIX M-2] 
     function matchOrders() external {
         if (block.number == lastMatchBlock) return;
         lastMatchBlock = block.number;
@@ -202,8 +202,8 @@ contract CommitRevealCLOB is ReentrancyGuard, Ownable {
         uint256 feeInTokenB = (totalCost  * FEE_BPS) / BPS_DENOMINATOR;
         uint256 feeInTokenA = (execAmount * FEE_BPS) / BPS_DENOMINATOR;
 
-        // [FIX V6] convertir feeInTokenA a tokenB para stats homogéneos
-        // feeInTokenA (WETH) × execPrice (USDC/WETH) / 1e18 = USDC equivalente
+        // [FIX V6] 
+        // feeInTokenA (WETH) × execPrice (USDC/WETH) / 1e18 = USDC 
         uint256 feeInTokenAasTokenB = (feeInTokenA * execPrice) / 1e18;
 
         registry.updateStats(bid.agent, execAmount, feeInTokenAasTokenB / 2);
